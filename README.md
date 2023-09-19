@@ -2,9 +2,9 @@
 
 ## Semantic Versioning
 
-This project is going to utilise sermantic versioning for its tagging.
+This project is going to utilise semantic versioning for its tagging.
 
-[semverr.org](https://semver.org/)
+[semver.org](https://semver.org/)
 
 The general format:
 
