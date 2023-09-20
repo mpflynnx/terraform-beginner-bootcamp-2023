@@ -224,3 +224,84 @@ before: |
       source ./bin/terraform-install.sh
 ```
 This command will execute the terraform-install.sh bash script.
+
+### Refactor Terraform installation script
+
+Bash scripts that may download files or update system packages are best not executed in the project root folder, as some stray files may accidentally make it into SCM. 
+
+To avoid this we should change the working folder to a folder outside of SCM either before running the script or during.
+
+Upon script completion we should then change back to the project root folder.
+
+We can define the project root folder as an environmental variable. We can then use this variable inside our script.
+
+
+### Environmental variables[<sup>[1]</sup>](#external-references)
+
+An environmental variable is a user-definable value that can be used by a process or multiple processes. They allow common values to span multiple processes. Hard coding values into code is not recommended, so defining
+environmental variables outside of code is best practice. This is particularly important with secret credentials.
+
+Environmental variables can be set temporarily or permanently.
+
+It is conventional for environment-variable names to be in all upper case. In programming code generally, this helps to distinguish environment variables from other kinds of names in the code. Environment-variable names are case sensitive on Unix-like operating systems but not on DOS, OS/2, and Windows.
+
+Example:
+
+```bash
+PROJECT_ROOT='/workspace/terraform-beginner-bootcamp-2023'
+```
+
+The variables can be used both in scripts and on the command line. They are usually referenced by putting special symbols in front of or around the variable name.
+
+```bash
+cd $PROJECT_ROOT
+```
+
+In most Unix and Unix-like command-line shells, an environment variable's value is retrieved by placing a $ sign before the variable's name. If necessary, the name can also be surrounded by braces.
+
+
+```bash
+echo ${PROJECT_ROOT}
+```
+
+Searching for set environmental variables is best done by using the env command along side the grp command.
+
+```bash
+env | grep PROJECT_ROOT
+```
+
+A variable can be cleared or unset by using the unset command.
+
+```bash
+unset PROJECT_ROOT
+```
+
+To persist an environmental variable across restarts or new shells, the variable needs to be defined in a special file or location.
+
+Depending on your OS, this file may be .bashrc or .profile or perhaps both, refer to the documentation for your operating system.
+
+If environmental variables are used, it is best practice to create a file called .env.example
+and place the variables inside this file. Other developers will then know they may need to update or set
+the variable according to there environment or security credentials.
+
+### Gitpod environmental variables[<sup>[2]</sup>](#external-references)
+
+Gitpod supports encrypted, user-specific environment variables. They are stored as part of your user settings and can be used to set access tokens, or pass any other kind of user-specific information to your workspaces.
+
+Setting user-specific environment variables
+
+Using the command line: gp env
+
+```bash
+gp env PROJECT_ROOT='/workspace/terraform-beginner-bootcamp-2023'
+```
+
+Beware that this does not modify your current terminal session, but rather persists this variable for the next workspace on this repository. gp can only interact with the persistent environment variables for this repository, not the environment variables of your terminal. If you want to set that environment variable in your terminal, you can do so using -e:
+
+The gp CLI prints and modifies the persistent environment variables associated with your user for the current repository.
+
+
+## External References
+- [Wikipedia Environment variables](https://en.wikipedia.org/wiki/Environment_variable#Unix) <sup>[1]</sup>
+
+- [Gitpod Environment Variables](https://www.gitpod.io/docs/configure/projects/environment-variables#using-the-account-settings) <sup>[2]</sup>
