@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+cd /workspace
+
+# cleanup
+rm -f  ./awscliv2.zip
+rm -rf ./aws
+
+# Download source code
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+
+# Install AWS CLI
+sudo ./aws/install
+
+# Returns details about the IAM user
+aws sts get-caller-identity
+
+cd $PROJECT_ROOT
