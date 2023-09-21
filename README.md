@@ -2,7 +2,8 @@
 
 ## Project Git flow
 
-This project is going to utilise the issue, feature branch, pull request, tag workflow.
+This project is going to utilise the issue, feature branch, pull request, tag GitHub workflow.
+
 Issues should be created in GitHub. Then feature branches created to work on the issue.
 Pull requests are to be used to merge the completed feature branch into main branch. Then the main branch tag is updated using semantic versioning.
 
@@ -38,6 +39,23 @@ With Gitpod, you have the following three types of [tasks](https://www.gitpod.io
 ### Restart a Workspace
 When you restart a workspace, Gitpod already executed the init task either as part of a Prebuild or when you started the workspace for the first time. The init task will not be
 run when the workspace is restarted. Gitpod executes the before and command tasks on restarts. **It is recommended to use the before task not the init task.**
+
+## Terraform
+
+Terraform is an infrastructure as code tool. Terraform is a command line interface application written in GO. Terraform is cloud agnostic. We can learn it once and then use it to provision cloud resources on multiple different cloud providers. Terraform is able to store the state of the resources deployed. We can make changes to them or add new resources, without needing to repeat deployment. Terraform is configured by using a declarative file format known as HCL.
+
+### Terraform providers
+
+Terraform plugins called providers let Terraform interact with cloud platforms and other services via their application programming interfaces (APIs). You can find providers for many of the platforms and services like AWS and AZURE in the [Terraform Registry Providers section](https://registry.terraform.io/browse/providers).
+
+The Terraform documentation is a great resource, with many examples. It should be consulted often when writing HCL for your chosen provider.
+
+- [Terraform AWS provider documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
+- [Terraform Random provider documentation](https://registry.terraform.io/providers/hashicorp/random/latest/docs)
+
+### Terraform modules
+
+Modules are templates for commonly used actions, they are self-contained packages of Terraform configurations that are managed as a group. You can find modules for many of the platforms and services like AWS and AZURE in the [Terraform Registry Modules section](https://registry.terraform.io/browse/modules)
 
 ## Terraform CLI
 
@@ -227,9 +245,9 @@ This command will execute the install_terraform_cli bash script.
 
 ### Refactor Terraform installation script
 
-Bash scripts that may download files or update system packages are best not executed in the project root folder, as some stray files may accidentally make it into SCM. 
+Bash scripts that may download files or update system packages are best not executed in the project root folder, as some stray files may accidentally make it into version control. 
 
-To avoid this we should change the working folder to a folder outside of SCM either before running the script or during.
+To avoid this we should change the working folder to a folder outside of version control either before running the script or during.
 
 Upon script completion we should then change back to the project root folder.
 
@@ -299,6 +317,120 @@ gp env PROJECT_ROOT='/workspace/terraform-beginner-bootcamp-2023'
 Beware that this does not modify your current terminal session, but rather persists this variable for the next workspace on this repository. gp can only interact with the persistent environment variables for this repository, not the environment variables of your terminal. If you want to set that environment variable in your terminal, you can do so using -e:
 
 The gp CLI prints and modifies the persistent environment variables associated with your user for the current repository.
+
+### Terraform CLI fundamentals[<sup>[4]</sup>](#external-references)
+
+We use the Terraform Command Line Interface (CLI) to manage infrastructure, and interact with Terraform state, providers, configuration files, and Terraform Cloud.
+
+The core Terraform workflow consists of three main steps after you have written your Terraform configuration:
+
+- Initialize prepares the working directory so Terraform can run the configuration.
+- Plan enables you to preview any changes before you apply them.
+- Apply makes the changes defined by your Terraform configuration to create, update, or destroy resources.
+
+### Cloud provider resource names
+
+When creating resources in the cloud, you mostly always need to provide a unique name that complies with the cloud providers naming convention for that resource. Hard coding a unique name is not advisable. It is best to use a tool to create a random name. In Terraform we can use [Random Provider - random_string](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) to do this.
+
+
+### A simple main.tf example
+
+This main.tf file uses the Hashicorp Random Provider. 
+
+We use the "random_string" resource to generate a random 16 character string identified as **bucket_name**. 
+
+We define one output "random_bucket_name" that is the .result of the "random_string" resource.
+
+main.tf
+```hcl
+terraform {
+  required_providers {
+    random = {
+      source = "hashicorp/random"
+      version = "3.5.1"
+    }
+  }
+}
+
+provider "random" {
+  # Configuration options
+}
+
+resource "random_string" "bucket_name" {
+  length           = 16
+  special          = true
+}
+
+output "random_bucket_name" {
+  value = random_string.bucket_name.result
+}
+```
+
+### Terraform basic usage example
+- Create a file with the name main.tf
+- Paste the contents of the example above into the file.
+- Open a terminal prompt in the same folder as main.tf then type.
+
+```bash
+$ terraform init
+```
+Initialize prepares the working directory so Terraform can run the configuration. 
+
+A new folder is created.
+
+- .terraform
+
+This folder is used to store the project's providers and modules. Terraform will refer to these components when you run validate, plan, and apply,
+
+One new file is created:-
+
+- .terraform.lock.hcl 
+
+The .terraform.lock.hcl file ensures that Terraform uses the same provider versions across your team and in ephemeral remote execution environments. During initialization, Terraform will download the provider versions specified by this file rather than the latest versions. This file should be under version control.
+
+Now run the following command.
+
+```bash
+$ terraform plan
+```
+
+Plan enables you to preview any changes before you apply them. If everything looks good then run the following command.
+
+```bash
+$ terraform apply
+```
+
+Apply makes the changes defined by your Terraform configuration to create, update, or destroy resources.
+
+One new file is created:-
+
+- terraform.tfstate 
+
+This State File contains full details of resources in our terraform code. When you modify something on your code and apply it on cloud, terraform will look into the state file, and compare the changes made in the code from that state file and the changes to the infrastructure based on the state file.[<sup>[6]</sup>](#external-references)  
+
+
+In the console there should be the output displaying the
+random_bucket_name. 
+
+```bash
+Outputs:
+
+random_bucket_name = "KGf!Yq@&[EbE_jiP"
+```
+
+### Terraform files and version control[<sup>[5]</sup>](#external-references)
+Your .gitignore file must contain exclusions for many of the generated Terraform folders and files. The only files needed to be under version control are:
+
+```bash
+main.tf
+.terraform.lock.hcl
+```
+
+- [Example .gitignore for Terraform](https://github.com/github/gitignore/blob/main/Terraform.gitignore)
+
+## AWS CLI
+
+The AWS Command Line Interface (AWS CLI) is an open source tool that enables you to interact with AWS services using commands in your command-line shell. With minimal configuration, the AWS CLI enables you to start running commands that implement functionality equivalent to that provided by the browser-based AWS Management Console from the command prompt in your terminal program.[<sup>[3]</sup>](#external-references)
 
 ## AWS IAM User credentials
 
@@ -466,3 +598,11 @@ This command will execute the install_aws_cli bash script.
 - [Wikipedia Environment variables](https://en.wikipedia.org/wiki/Environment_variable#Unix) <sup>[1]</sup>
 
 - [Gitpod Environment Variables](https://www.gitpod.io/docs/configure/projects/environment-variables#using-the-account-settings) <sup>[2]</sup>
+
+- [What is the AWS Command Line Interface?](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html) <sup>[3]</sup>
+
+- [Terraform tutorials - Use the Command Line Interface](https://developer.hashicorp.com/terraform/tutorials/cli) <sup>[4]</sup>
+
+- [How to Create & Use Gitignore File With Terraform](https://spacelift.io/blog/terraform-gitignore)<sup>[5]</sup>
+
+- [What Is Terraform State File And How It Is Managed?](https://www.easydeploy.io/blog/terraform-state-file/)<sup>[6]</sup>
