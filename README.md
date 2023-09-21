@@ -85,7 +85,7 @@ Typically:
 
 This is known as a [shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)), pronounced sha-bang. 
 ```bash
-#!/
+#!
 ```
 
 As best practice all bash script files should have this as the first line.
@@ -99,7 +99,7 @@ This allows portability for running the script on different linux operating syst
 #### Script file permissions
 To execute a bash script in the terminal you can prepend the script filename with the word source.
 ```
-source ./terraform-install-script
+source ./install_terraform_cli
 ```
 
 ```
@@ -110,7 +110,7 @@ The terminal prompt should be in the same folder as the script file. Alternative
 add the file path to the command.
 
 ```
-$ source ./bin/terraform-install-script
+$ source ./bin/install_terraform_cli
 ```
 
 The source command has permission to run bash scripts, irrespective of the scripts linux permissions.
@@ -126,7 +126,7 @@ $ ls -la ./script-filename
 ```
 Expected console output:
 ```
-0 -rw-r--r-- 1 gitpod gitpod 0 Sep 19 11:33 bin/terraform-install.sh
+0 -rw-r--r-- 1 gitpod gitpod 0 Sep 19 11:33 bin/install_terraform_cli
 ```
 
 Alternatively, return the octal format permissions
@@ -165,7 +165,7 @@ $ chmod 400 ./filename.ext
 
 This is needed for AWS as the SSH keys need to be read only.
 
-### terraform-install-script
+### install_terraform_cli script
 
 Create a new issue in GitHub, create a new feature branch to work on the issue.
 
@@ -174,7 +174,7 @@ Switch to feature branch, and run Gitpod workspace.
 Create a new folder and file in the Gitpod workspace.
 
 ```bash
-$ mkdir bin && touch bin/terraform-install.sh
+$ mkdir bin && touch bin/install_terraform_cli
 ```
 
 Open the file for editing and add the shebang to the first line of the new file.
@@ -190,11 +190,11 @@ Run the script manually and test the Terraform CLI was installed.
 Set executable permission.
 
 ```bash
-$ chmod 755 ./bin/terraform-install.sh
+$ chmod 755 ./bin/install_terraform_cli
 ```
 Run the script.
 ```bash
-$ ./bin/terraform-install.sh
+$ ./bin/install_terraform_cli
 ```
 
 Test the installation.
@@ -209,7 +209,7 @@ Terraform v1.5.7
 on linux_amd6
 ```
 
-### Refactor the .gitpod.yml file
+### Refactor the .gitpod.yml file for install_terraform_cli
 
 Remove the four lines of bash commands installing terraform from the init task.
 
@@ -221,9 +221,9 @@ before: |
 Add a new line.
 ```yml
 before: |
-      source ./bin/terraform-install.sh
+      source ./bin/install_terraform_cli
 ```
-This command will execute the terraform-install.sh bash script.
+This command will execute the install_terraform_cli bash script.
 
 ### Refactor Terraform installation script
 
@@ -264,7 +264,7 @@ In most Unix and Unix-like command-line shells, an environment variable's value 
 echo ${PROJECT_ROOT}
 ```
 
-Searching for set environmental variables is best done by using the env command along side the grp command.
+Searching for set environmental variables is best done by using the env command along side the grep command.
 
 ```bash
 env | grep PROJECT_ROOT
@@ -281,8 +281,8 @@ To persist an environmental variable across restarts or new shells, the variable
 Depending on your OS, this file may be .bashrc or .profile or perhaps both, refer to the documentation for your operating system.
 
 If environmental variables are used, it is best practice to create a file called .env.example
-and place the variables inside this file. Other developers will then know they may need to update or set
-the variable according to there environment or security credentials.
+and place the actual variable name with fake values inside this file. Other developers will then know they may need to update or set
+the variable value according to there environment or security credentials.
 
 ### Gitpod environmental variables[<sup>[2]</sup>](#external-references)
 
@@ -290,7 +290,7 @@ Gitpod supports encrypted, user-specific environment variables. They are stored 
 
 Setting user-specific environment variables
 
-Using the command line: gp env
+Using the command: gp env
 
 ```bash
 gp env PROJECT_ROOT='/workspace/terraform-beginner-bootcamp-2023'
@@ -299,6 +299,167 @@ gp env PROJECT_ROOT='/workspace/terraform-beginner-bootcamp-2023'
 Beware that this does not modify your current terminal session, but rather persists this variable for the next workspace on this repository. gp can only interact with the persistent environment variables for this repository, not the environment variables of your terminal. If you want to set that environment variable in your terminal, you can do so using -e:
 
 The gp CLI prints and modifies the persistent environment variables associated with your user for the current repository.
+
+## AWS IAM User credentials
+
+The Root user account for AWS should never be used for daily account activities. Therefore we should create a IAM user account.
+
+### Creating a IAM user using the aws web console.
+
+Login to the [AWS web console](https://console.aws.amazon.com/) using your Root user credentials.
+
+Use the drop down in the top right corner, under your account name, select Security credentials.
+
+Firstly we will create a User group. We can assign policies to this group. Then assign multiple users to the group. Therefore all users in the group shall have the same permissions.
+
+On the left hand pane under Access management select User Groups.
+
+Click Create Group.
+
+Enter User group name: terratowns
+
+Scroll down to Attach permissions policies - Optional
+
+Select AdministratorAccess
+
+- [x] Select AdministratorAccess
+
+It is not recommended to use this policy. AdministratorAccess, provides full access to AWS services and resources. Where possible a group policy should be fine tuned to allow authorisation to only the services required. We can easily remove this Policy at a later date and give a more granular set of Permissions. 
+
+Scroll down, and click Create group.
+
+On the left hand pane under Access management select Users.
+
+Click Create user.
+
+Enter a User name: terraform-cloud-project-beginner-bootcamp
+
+Leave everything else as the defaults.
+
+Click Next.
+
+Add user to the terratowns group
+
+Click Next
+
+Click Create user
+
+### Adding AWS User credentials to Gitpod workspace
+
+We need to create three environmental variables to use the AWS CLI application.
+
+Example: [AWS environmental variables](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) with fake values.
+
+```bash
+AWS_ACCESS_KEY_ID='AKIAIOSFODNN7EXAMPLE'
+AWS_SECRET_ACCESS_KEY='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+AWS_DEFAULT_REGION='us-west-2'
+```
+
+**Important:**
+We should always surround our environmental variable values with single quotes. This prevents [bash interpreter interpolation](https://www.baeldung.com/linux/bash-escape-characters).
+
+
+As detailed in section Gitpod environmental variables. We can assign persistent environment variables to the Gitpod workspace using
+
+```bash
+gp env ENVVAR_NAME='envvar-value'
+```
+Therefore, we should enter the following in the Gitpod workspace terminal window. Substituting the fake values with the real values.
+```bash
+gp env AWS_ACCESS_KEY_ID='AKIAIOSFODNN7EXAMPLE'
+gp env AWS_SECRET_ACCESS_KEY='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+gp env AWS_DEFAULT_REGION='us-west-2'
+```
+### Retrieve the real values for IAM User
+
+Login to the [AWS web console](https://console.aws.amazon.com/) using your Root user credentials.
+
+Use the drop down in the top right corner, under your account name, select Security credentials.
+
+On the left hand pane under Access management select Users.
+
+Select the user with the name: terraform-cloud-project-beginner-bootcamp
+Under Summary, select Security credentials
+Scroll down to Access keys
+Click Create access key
+Select under Use case, Command Line Interface (CLI)
+Tick the box Under Confirmation.
+Click Next
+Click Create access key
+
+You should now be presented with a Access key and a hidden Secret access key. Do not close the browser tab.
+
+Copy the Access key to clipboard. 
+Switch back to the Gitpod workspace terminal.
+Paste the key between the single quotes to complete the command below. Then hit the enter key.
+
+```bash
+gp env AWS_ACCESS_KEY_ID='paste clipboard here'
+```
+
+Copy the Secret access key to clipboard. Switch back to the Gitpod workspace terminal.
+Paste the key between the single quotes to complete the command below. Then hit the enter key.
+
+```bash
+gp env AWS_SECRET_ACCESS_KEY='paste clipboard here'
+```
+
+Submit the final AWS environmental variable by copying the command below and pasting into the Gitpod workspace terminal.
+
+```bash
+gp env AWS_DEFAULT_REGION='eu-west-2'
+```
+
+### Installation of AWS CLI in Gitpod workspace
+
+The commands needed to install THE AWS CLI for Linux are described [here](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html).
+
+As there are multiple command lines needed to install AWS CLI, we shall not clutter the .gitpod.yml with these commands, but shall create a bash script.
+
+Scripts that download files to the workspace, should include clean up commands to remove any files and/or folders created while running the script. The clean up can occur either at the start of the script or at the end of the script.
+
+To install the AWS CLI, we download a zip file, and unzip the file to the /workspace folder.
+Both the zip file and extracted zip file contents needed to be removed as part of the clean up.
+
+The bash command to remove/delete a file:
+
+```bash
+rm ./filename.ext
+```
+
+Note: If the file does not exist, an error will occur and the script will exit at that point. The script will not complete. We can force the rm command to ignore the errors using:-
+
+```bash
+rm -f ./filename.ext
+```
+
+The bash command to force removal/deletion of a folder and all it's contents is:
+
+```bash
+rm -rf ./folder/folder-name
+```
+
+**IMPORTANT:**
+The use of the above command as root user could remove important system files/folders. Great care should be taken to insure that the correct folder is targeted before using the command, where possible always use the full absolute path to the folder.
+
+### Test the AWS credentials
+In the install_aws_cli script we can run an AWS CLI command called [get-caller-identity](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/sts/get-caller-identity.html). This command Returns details about the IAM user or role whose credentials are used to call the operation. Therefore, this is a good way of checking we are ready to start using AWS and have the correct IAM User for the project.
+
+### Refactor the .gitpod.yml file to use the AWS CLI install script
+
+Rename init task to before task. 
+```yml
+before: |
+```
+
+Add a new line.
+```yml
+before: |
+      source ./bin/install_aws_cli
+```
+This command will execute the install_aws_cli bash script.
+
 
 
 ## External References
