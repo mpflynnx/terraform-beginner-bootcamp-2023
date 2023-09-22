@@ -330,12 +330,12 @@ The core Terraform workflow consists of three main steps after you have written 
 
 ### Cloud provider resource names
 
-When creating resources in the cloud, you mostly always need to provide a unique name that complies with the cloud providers naming convention for that resource. Hard coding a unique name is not advisable. It is best to use a tool to create a random name. In Terraform we can use [Random Provider - random_string](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) to do this.
+When creating resources in the cloud, you mostly always need to provide a unique name that complies with the cloud providers naming convention for that resource. Hard coding a unique name is not advisable. It is best to use a tool to create a random name. In Terraform we can use [Random Provider - random_string](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) to do this. Always check the naming rules with the cloud providers documentation. Terraform cannot check naming rules.
 
 
 ### A simple main.tf example
 
-This main.tf file uses the Hashicorp Random Provider. 
+This main.tf file uses the Hashicorp Random Provider, to generate a unique 32 character lower case string. This string will comply with the [AWS naming rules](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html?icmpid=docs_amazons3_console) for an S3 bucket. 
 
 We use the "random_string" resource to generate a random 16 character string identified as **bucket_name**. 
 
@@ -357,8 +357,9 @@ provider "random" {
 }
 
 resource "random_string" "bucket_name" {
-  length           = 16
-  special          = true
+  length = 32
+  special = false
+  upper = false
 }
 
 output "random_bucket_name" {
@@ -397,10 +398,10 @@ $ terraform plan
 Plan enables you to preview any changes before you apply them. If everything looks good then run the following command.
 
 ```bash
-$ terraform apply
+$ terraform apply --auto-approve
 ```
 
-Apply makes the changes defined by your Terraform configuration to create, update, or destroy resources.
+Apply makes the changes defined by your Terraform configuration to create, update, or destroy resources. The use of **--auto-approve** removes the need for you to type 'yes' when prompted.
 
 One new file is created:-
 
@@ -410,13 +411,26 @@ This State File contains full details of resources in our terraform code. When y
 
 
 In the console there should be the output displaying the
-random_bucket_name. 
+'random_bucket_name'. 
 
 ```bash
 Outputs:
 
-random_bucket_name = "KGf!Yq@&[EbE_jiP"
+random_bucket_name = "[x$)z8:_62}#2b2jq}_%6q$]}u=t_-5t"
 ```
+
+Now the resources have been applied, we can retrieve the value of the 'random_bucket_name' by using the following command.
+
+```bash
+$ terraform output random_bucket_name
+```
+
+Expected console output.
+```bash
+"[x$)z8:_62}#2b2jq}_%6q$]}u=t_-5t"
+```
+
+You can use Terraform outputs to connect your Terraform projects with other parts of your infrastructure, or with other Terraform projects.[<sup>[7]</sup>](#external-references)
 
 ### Terraform files and version control[<sup>[5]</sup>](#external-references)
 Your .gitignore file must contain exclusions for many of the generated Terraform folders and files. The only files needed to be under version control are:
@@ -592,6 +606,130 @@ before: |
 ```
 This command will execute the install_aws_cli bash script.
 
+### Terraform and AWS
+
+To use AWS with Terraform we need to add AWS to the providers block in the main.tf file. The code needed can be found on the Terraform registry webpage by searching for [Provider AWS](https://registry.terraform.io/providers/hashicorp/aws/latest). Click on USE PROVIDER and copy the AWS specific block, as shown below.
+
+```hcl
+aws = {
+      source = "hashicorp/aws"
+      version = "5.17.0"
+    }
+```
+
+**Note:** The main.tf can only have one terraform {} block and one required_providers {} block. Multiple providers are listed in the required_provider{} block, as shown below.
+
+```hcl
+terraform {
+  required_providers {
+    random = {
+      source = "hashicorp/random"
+      version = "3.5.1"
+    }
+    aws = {
+      source = "hashicorp/aws"
+      version = "5.17.0"
+    }
+  }
+}
+```
+
+### Authentication and Configuration[<sup>[8]</sup>](#external-references)
+
+Configuration for the AWS Provider can be derived from several sources, which are applied in the following order:
+
+1. Parameters in the provider configuration
+1. Environment variables
+1. Shared credentials files
+1. Shared configuration files
+1. Container credentials
+1. Instance profile credentials and region
+
+**Warning:** Hard-coded credentials are not recommended in any Terraform configuration and risks secret leakage should this file ever be committed to a public version control system.
+
+We have chosen to use list item number 2, for this project. Our credentials are stored securely by using the Gitpod environmental variable storage service.[<sup>[2]</sup>](#external-references)
+
+Check your AWS environmental variables in the terminal prompt with:
+
+```bash
+env | grep AWS_
+```
+
+## AWS S3 Bucket
+
+[Amazon Simple Storage Service](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html) (Amazon S3) is storage for the internet. You can use Amazon S3 to store and retrieve any amount of data at any time, from anywhere on the web.
+
+To store your data in Amazon S3, you work with resources known as [buckets](https://docs.aws.amazon.com/AmazonS3/latest/userguide/creating-buckets-s3.html) and objects. A bucket is a container for objects. An object is a file and any metadata that describes that file.
+
+### Creating a bucket[<sup>[10]</sup>](#external-references)
+To upload your data to Amazon S3, you must first create an Amazon S3 bucket in one of the AWS Regions. When you create a bucket, you must choose a bucket name and Region. You can optionally choose other storage management options for the bucket. After you create a bucket, you cannot change the bucket name or Region.
+
+### Creating a bucket with Terraform
+
+To create a bucket with Terraform we refer to the Terraform AWS provider documentation for S3 (simple Storage).[<sup>[9]</sup>](#external-references)
+We copy the code block detailed in the documentation and update the values accordingly.
+
+
+```hcl
+resource "aws_s3_bucket" "example" {
+  bucket = "my-tf-test-bucket"
+
+  tags = {
+    Name        = "My bucket"
+    Environment = "Dev"
+  }
+}
+```
+
+**Note:** 
+AWS CloudFormation[<sup>[11]</sup>](#external-references) is a Infrastructure as Code tool. Many of names match with the Terraform AWS providers names. For example AWS::S3::Bucket in AWS CloudFormation matches with aws_s3_bucket.
+The AWS CloudFormation documentation should also be referenced to assist with the use of Terraform with AWS.
+
+
+We will use the [Random Provider - random_string](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) to generate a unique name for our bucket.
+
+To use this we replace the bucket = "string value" with the output of the random_string resource. As shown below.
+
+```hcl
+resource "aws_s3_bucket" "example" {
+  bucket = random_string.bucket_name.result
+
+  tags = {
+    Name        = "My bucket"
+    Environment = "Dev"
+  }
+}
+```
+
+- Update the main.tf accordingly.
+- Open a terminal prompt in the same folder as main.tf then type.
+
+```bash
+$ terraform init
+```
+Initialize prepares the working directory so Terraform can run the configuration. Downloads to .terraform folder the AWS provider binary.
+
+```bash
+$ terraform plan
+```
+
+Plan enables you to preview any changes before you apply them. If everything looks good then run the following command.
+
+```bash
+$ terraform apply --auto-approve
+```
+
+Check using the following AWS CLI command that the bucket was created.
+
+```bash
+$ aws s3 ls
+```
+
+Now delete the AWS resources using terraform destroy. This command terminates resources managed by your Terraform project. This command is the inverse of terraform apply in that it terminates all the resources specified in your Terraform state. It does not destroy resources running elsewhere that are not managed by the current Terraform project.
+
+```bash
+$ terraform destroy --auto-approve
+```
 
 
 ## External References
@@ -606,3 +744,13 @@ This command will execute the install_aws_cli bash script.
 - [How to Create & Use Gitignore File With Terraform](https://spacelift.io/blog/terraform-gitignore)<sup>[5]</sup>
 
 - [What Is Terraform State File And How It Is Managed?](https://www.easydeploy.io/blog/terraform-state-file/)<sup>[6]</sup>
+
+- [Output data from Terraform](https://developer.hashicorp.com/terraform/tutorials/configuration-language/outputs)<sup>[7]</sup>
+
+- [AWS Provider Authentication and Configuration](https://registry.terraform.io/providers/hashicorp/aws/latest/docs#authentication-and-configuration)<sup>[8]</sup>
+
+- [Resource: aws_s3_bucket](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket)<sup>[9]</sup>
+
+- [Creating a bucket](https://docs.aws.amazon.com/AmazonS3/latest/userguide/create-bucket-overview.html)<sup>[10]</sup>
+
+- [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html)<sup>[11]</sup>
