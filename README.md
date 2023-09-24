@@ -731,6 +731,146 @@ Now delete the AWS resources using terraform destroy. This command terminates re
 $ terraform destroy --auto-approve
 ```
 
+The file below is updated:-
+
+- terraform.tfstate 
+
+This State File contains full details of resources in our terraform code. When you modify something on your code and apply it on cloud, terraform will look into the state file, and compare the changes made in the code from that state file and the changes to the infrastructure based on the state file.[<sup>[6]</sup>](#external-references)
+
+## Terraform Cloud
+
+As mentioned the terraform.tfstate file is very important. It's important to protect your state file. If you lose the state file, Terraform will have no way to know what it built or what could be safe to delete or change.
+
+The default setting of Terraform is to store your state file on your local laptop or your workstation. This works great for a single developer or someone working alone on a project, but as soon as you have 2 or more people trying to work on the same project, this can become a problem.
+
+We will use a "remote state." This is a centrally stored state file where multiple uses can access the state of your infrastructure. Remote state can be stored either on cloud platform storage, like S3, or inside of Terraform Cloud.
+
+Terraform Cloud provides all of the features we need to work with remote state, including locking, collaboration, and encryption.
+
+### Terraform Cloud pricing
+
+In the Free tier we get 500 resources per month, and do not need to provide a credit card. If we exceed 500 resources per month we will switch to the Standard tier. The Standard tier requires a credit card to be registered.[<sup>[12]</sup>](#external-references)
+
+### Register for a new Terraform Cloud account
+Go to webpage [terraform.io](https://www.terraform.io/)
+
+- Click on Try Terraform Cloud
+- Register a new account
+- Follow all the prompts, then you are ready to use Terraform Cloud.
+
+### Configure Terraform Cloud
+Go to [Terraform Cloud login](https://app.terraform.io/session)
+- Login to your Terraform Cloud account.
+- Create a new [organization](https://app.terraform.io/app/organizations/new).
+- Create a new [Project](https://app.terraform.io/app/mpflynnx/workspaces). Click on New and select Project from dropdown. Give a project name as 'terraform-beginner-bootcamp-2023'. Click Create button.
+- Create a new CLI-driven workflow [workspace](https://app.terraform.io/app/mpflynnx/workspaces/new).
+- Give Workspace Name as terra-house-1. The name of your workspace is unique and used in tools, routing, and UI. Dashes, underscores, and alphanumeric characters are permitted. Learn more about [naming workspaces](https://www.terraform.io/docs/cloud/workspaces/naming.html)
+
+- Select Project 'terraform-beginner-bootcamp-2023'. Give description. of workspace. The click Create workspace.
+- Open a Gitpod workspace for the project.
+
+- Copy the 'Example code' block for cloud then paste this into the main.tf file.
+### Create an API Token
+
+- Log in to Terraform Cloud and go on to [User Settings](https://app.terraform.io/app/settings/profile).
+
+- Click on [Tokens](https://app.terraform.io/app/settings/tokens).
+
+- Click on Create an API token. Give a description as 'TerraTowns'. Set Expiration to 30 days. Click Generate Token.
+
+- Copy the Token now, as you will not be able to see it again, if you close the [Tokens](https://app.terraform.io/app/settings/tokens) browser tab.
+
+- Create new persistent Gitpod environmental variable, substituting the real value, in the command below.
+
+```bash
+$ gp env TERRAFORM_CLOUD_TOKEN='EXAMPLERF6rtdg.atlasv1.i1AOIJy0RpyyAsdArLTbZ77ImBFV3Fg8ezGxseOwvAcCcRZzQKiJuJErsrZoEXAMPLE'
+```
+- Check [Gitpod variables](https://gitpod.io/user/variables) url for the new variable.
+
+- Stop and the start the Gitpod workspace for the new environment variable to be available for use.
+- Run command below and verify that the TERRAFORM_CLOUD_TOKEN is set.
+```bash
+$ env | grep TERRAFORM_
+```
+
+- Update the .env.example file with a example token as shown above.
+
+### Gitpod problems with Terraform login command
+
+The command ['Terraform login'](https://developer.hashicorp.com/terraform/cli/commands/login), wants to request an API token for app.terraform.io using your internet browser. We are using Gitpod workspace for this project so this will not work. We must come up with another solution for this.
+
+By default, Terraform will obtain an API token and save it in plain text in a local CLI configuration file called credentials.tfrc.json. 
+
+The location of our file is:
+```bash
+$ /home/gitpod/.terraform.d/credentials.tfrc.json
+```
+
+The structure of this file is:
+```json
+{
+  "credentials": {
+    "app.terraform.io": {
+      "token": "$TERRAFORM_CLOUD_TOKEN"
+    }
+  }
+}
+```
+### generate_tfrc_credentials bash script
+
+As we are using Gitpod, we need a way of creating the credentials.tfrc.json file on the creation of every new Gitpod workspace. To do this we shall write a bash script. The bash script shall do the following:
+- Create a new folder, '.terraform.d', if it doesn't exist
+- Create a new file, 'credentials.tfrc.json', if it doesn't exist.
+- Use the cat command to build the json block, obtaining the persistent Gitpod environmental variable $TERRAFORM_CLOUD_TOKEN from the local environment.
+
+The script will be placed in the bin folder.
+
+The gitpod.yml file needs to be updated to run this script on the creation of a new Gitpod workspace.
+
+- Run command below and verify that the TERRAFORM_CLOUD_TOKEN is set.
+```bash
+$ env | grep TERRAFORM_
+```
+
+- Make the bash script generate_tfrc_credentials executable with the command below:
+```bash
+$ cd /workspace/terraform-beginner-bootcamp-2023 
+$ chmod u+x ./bin/generate_tfrc_credentials
+```
+- Run the script, using the command below.
+```bash
+$ cd /workspace/terraform-beginner-bootcamp-2023
+$ ./bin/generate_tfrc_credentials
+```
+- Check the file exists and contains the TERRAFORM_CLOUD_TOKEN.
+```
+$ cat /home/gitpod/.terraform.d/credentials.tfrc.json
+```
+- Run the following command, to test the credentials.
+
+```bash
+$ terraform init
+```
+- You should be presented with the following screen.
+```bash
+Initializing Terraform Cloud...
+
+Initializing provider plugins...
+- Reusing previous version of hashicorp/aws from the dependency lock file
+- Reusing previous version of hashicorp/random from the dependency lock file
+- Installing hashicorp/aws v5.17.0...
+- Installed hashicorp/aws v5.17.0 (signed by HashiCorp)
+- Installing hashicorp/random v3.5.1...
+- Installed hashicorp/random v3.5.1 (signed by HashiCorp)
+
+Terraform Cloud has been successfully initialized!
+
+You may now begin working with Terraform Cloud. Try running "terraform plan" to
+see any changes that are required for your infrastructure.
+
+If you ever set or change modules or Terraform Settings, run "terraform init"
+again to reinitialize your working directory.
+```
 
 ## External References
 - [Wikipedia Environment variables](https://en.wikipedia.org/wiki/Environment_variable#Unix) <sup>[1]</sup>
@@ -754,3 +894,5 @@ $ terraform destroy --auto-approve
 - [Creating a bucket](https://docs.aws.amazon.com/AmazonS3/latest/userguide/create-bucket-overview.html)<sup>[10]</sup>
 
 - [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html)<sup>[11]</sup>
+
+- [Terraform Cloud Free and Paid Plans](https://developer.hashicorp.com/terraform/cloud-docs/overview#free-and-paid-plans)<sup>[12]</sup>
