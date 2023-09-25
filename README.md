@@ -948,16 +948,16 @@ alias tf='terraform'
 For Gitpod, to make this alias persist on the creation of new workspaces, we need to create a bash script that will create the '.bash_aliases' file and populate it with the alias for the terraform command.
 
 The bash script should do the following:-
-- Create /home/gitpod/.bash_aliases if it doesn't exist.
+- Create file /home/gitpod/.bash_aliases, if it doesn't exist.
 - Use the cat command to populate the file with the alias.
-- The bash script should be stored in the /workspace/terraform-beginner-bootcamp-2023/bin folder.
-
+- Make the aliases available immediately, by using the source command on the .bash_aliases file.
+- The bash script should be stored in the '/workspace/terraform-beginner-bootcamp-2023/bin' folder.
 - We can make the script executable using the command below:
 ```bash
 $ chmod 764 ./bin/create_bash_aliases
 ```
 
-The bash script should be run as part of the .gitpod.yml using the source command.
+The bash script should be run first as part of the .gitpod.yml 'before' task using the source command.
 
 ## External References
 - [Wikipedia Environment variables](https://en.wikipedia.org/wiki/Environment_variable#Unix) <sup>[1]</sup>
