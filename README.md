@@ -872,6 +872,54 @@ If you ever set or change modules or Terraform Settings, run "terraform init"
 again to reinitialize your working directory.
 ```
 
+### Terraform Cloud Workspace variables
+Terraform Cloud performs Terraform runs on disposable Linux worker VMs using a POSIX-compatible shell. Before running Terraform operations, Terraform Cloud uses the export command to populate the shell with environment variables. These environment variables can store our AWS credentials.
+
+Terraform Cloud lets you define input and environment variables using either workspace-specific variables, or sets of variables that you can reuse in multiple workspaces. [Variable sets](https://developer.hashicorp.com/terraform/tutorials/cloud-get-started/cloud-create-variable-set) allow you to avoid redefining the same variables across workspaces, so you can standardize common configurations. 
+
+For this project we will define our AWS credentials as [workspace-specific variables](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/variables). 
+
+**Precedence**[<sup>[13]</sup>](#external-references)
+
+The AWS credentials will apply only to the to a single 'terra-house-1' workspace. Workspace-specific variables always overwrite variables from variable sets that have the same key. [Refer to overwrite variables from variable sets](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/variables/managing-variables#overwrite-variable-sets) for details.
+
+### Adding Workspace-specific Variables
+
+1. Open a browser tab and login to your [Terraform cloud account](https://app.terraform.io/session).
+1. Go to workplace 'terra-house-1'.
+1. Click Variables on left hand pane.
+1. Scroll down to Workspace variables.
+1. Open another browser tab and login to your [Gitpod account](https://gitpod.io/login/).
+1. Go to Gitpod, User settings, then click [Variables](https://gitpod.io/user/variables). Here are the AWS credentials we added to our Gitpod account previously. We will copy them for here to the Terraform Cloud workspace.
+1. Go back onto the Terraform Cloud 'terra-house-1' workspace browser tab.
+1. Click + Add variable.
+1. Create a new variable for AWS_ACCESS_KEY_ID, copy the value from the Gitpod user settings browser tab.
+1. Choose the variable category as environment.
+1. Mark the variable as sensitive. This prevents Terraform from displaying it in the Terraform Cloud UI and makes the variable write-only.
+1. Click Save variable.
+1. Repeat steps 8 to 12 for the remaining two AWS_ variables.
+1. We have now added our AWS credentials to the 'terra-house-1' workspace.
+
+### Terraform Cloud setup confirmation
+If you have previously stopped a Gitpod workspace, then open a new Gitpod workspace from the Github project main branch.
+
+```bash
+$ terraform init
+$ terraform plan
+$ terraform apply --auto-approve
+```
+
+1. Run the commands above in the order given. These command will login to Terraform Cloud, create a plan, and apply the plan. The terraform.tfstate file will be stored on our Terraform cloud account and not locally.
+1. Go on to the Terraform Cloud browser tab and navigate to Workspace 'terra-house-1'.
+1. Click on Runs, to see the completed current run.
+1. To confirm the AWS S3 bucket has been created, we can login to the AWS console and search for Amazon S3. Verify that the bucket names match. Alternatively type command:
+```bash
+aws s3 ls
+```
+
+
+We have now completed our setup of Terraform Cloud. From here onwards our AWS infrastructure state we be securely stored. Subsequent runs will be logged in Terraform cloud for viewing.
+
 ## External References
 - [Wikipedia Environment variables](https://en.wikipedia.org/wiki/Environment_variable#Unix) <sup>[1]</sup>
 
