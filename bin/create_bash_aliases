@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# Define target file
+TARGET_FILE="/home/gitpod/.bash_aliases"
+
+# Create file if it doesn't exist.
+if [ ! -e "$TARGET_FILE" ]; then
+    touch "$TARGET_FILE"
+fi
+
+# Populate file with aliases
+cat > "$TARGET_FILE" << EOF
+alias tf='terraform'
+EOF
+
+echo "${TARGET_FILE} has been created."

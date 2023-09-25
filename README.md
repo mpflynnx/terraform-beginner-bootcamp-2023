@@ -106,7 +106,7 @@ This is known as a [shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)), pron
 #!
 ```
 
-As best practice all bash script files should have this as the first line.
+As best practice all bash script files should have the command below as the first line.
 
 ```bash
 #!/usr/bin/env bash
@@ -154,12 +154,12 @@ $ stat --format="%a" ./script-filename
 
 Expected console output:
 ```
-644
+664
 ```
 
 To change the executable bit, this can be done in two ways.
 
-As sudo you can change permissions using the [chmod](https://www.linuxtopia.org/online_books/introduction_to_linux/linux_The_chmod_command.html) command.
+As a logged in user you can change permissions using the [chmod](https://www.linuxtopia.org/online_books/introduction_to_linux/linux_The_chmod_command.html) command.
 
 ```bash
 $ chmod u+x ./script-filename
@@ -168,7 +168,7 @@ $ chmod u+x ./script-filename
 Example using the octal format.
 
 ```bash
-$ chmod 755 ./script-filename
+$ chmod 764 ./script-filename
 ```
 
 #### File protection
@@ -192,7 +192,8 @@ Switch to feature branch, and run Gitpod workspace.
 Create a new folder and file in the Gitpod workspace.
 
 ```bash
-$ mkdir bin && touch bin/install_terraform_cli
+$ cd /workspace/terraform-beginner-bootcamp-2023
+$ mkdir bin && touch ./bin/install_terraform_cli
 ```
 
 Open the file for editing and add the shebang to the first line of the new file.
@@ -208,7 +209,7 @@ Run the script manually and test the Terraform CLI was installed.
 Set executable permission.
 
 ```bash
-$ chmod 755 ./bin/install_terraform_cli
+$ chmod 764 ./bin/install_terraform_cli
 ```
 Run the script.
 ```bash
@@ -296,7 +297,7 @@ unset PROJECT_ROOT
 
 To persist an environmental variable across restarts or new shells, the variable needs to be defined in a special file or location.
 
-Depending on your OS, this file may be .bashrc or .profile or perhaps both, refer to the documentation for your operating system.
+Depending on your Linux OS, this file may be .bashrc or .profile or perhaps use both, refer to the documentation for your operating system. 
 
 If environmental variables are used, it is best practice to create a file called .env.example
 and place the actual variable name with fake values inside this file. Other developers will then know they may need to update or set
@@ -920,6 +921,44 @@ aws s3 ls
 
 We have now completed our setup of Terraform Cloud. From here onwards our AWS infrastructure state we be securely stored. Subsequent runs will be logged in Terraform cloud for viewing.
 
+### Terraform cli convenience bash alias
+
+To aid productivity using the terminal we can create aliases to common linux commands. The most popular aliases are for the list 'ls' command. Typing 'ls' on it's own isn't so bad, but the default result isn't particularly helpful. That is why by default many Linux OS's provide aliases for the 'ls' command. These aliases are stored in a '.bashrc' file for the logged in user. 
+
+Here is an example of an alias.
+```bash
+alias ll='ls -alF'
+```
+
+On Ubuntu you can create your own file '.bash_aliases' this will take precedence over .bashrc. We can put our personal bash aliases in this file. For example you may want to have an alias for the terraform command below. 
+```bash
+$ terraform init
+```
+We can create an alias, so that the same command becomes.
+
+```bash
+$ tf init
+```
+The terraform alias would be:
+```bash
+alias tf='terraform'
+```
+
+
+For Gitpod, to make this alias persist on the creation of new workspaces, we need to create a bash script that will create the '.bash_aliases' file and populate it with the alias for the terraform command.
+
+The bash script should do the following:-
+- Create /home/gitpod/.bash_aliases if it doesn't exist.
+- Use the cat command to populate the file with the alias.
+- The bash script should be stored in the /workspace/terraform-beginner-bootcamp-2023/bin folder.
+
+- We can make the script executable using the command below:
+```bash
+$ chmod 764 ./bin/create_bash_aliases
+```
+
+The bash script should be run as part of the .gitpod.yml using the source command.
+
 ## External References
 - [Wikipedia Environment variables](https://en.wikipedia.org/wiki/Environment_variable#Unix) <sup>[1]</sup>
 
@@ -944,3 +983,4 @@ We have now completed our setup of Terraform Cloud. From here onwards our AWS in
 - [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html)<sup>[11]</sup>
 
 - [Terraform Cloud Free and Paid Plans](https://developer.hashicorp.com/terraform/cloud-docs/overview#free-and-paid-plans)<sup>[12]</sup>
+- [Terraform Cloud Variable Precedence](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/variables#precedence)<sup>[13]</sup>
