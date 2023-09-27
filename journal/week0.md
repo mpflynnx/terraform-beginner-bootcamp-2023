@@ -16,7 +16,7 @@ The objectives of week 0 where:
 
 
 <p align="center">
-  <img src="../assets/week0.png"/>
+  <img src="../assets/week0.PNG"/>
 </p>
 
 # <p align=center>Week 0 Architecture Diagram </p>
