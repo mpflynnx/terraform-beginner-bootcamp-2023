@@ -8,7 +8,7 @@
 ## TerraTowns is a community website where bootcamp participants (terraformers) launch their own Terra House (a user-created website) and connect their house to other Terraformers. Similar to GeoCities circa 2001.
 
 <p align="center">
-  <img src="assets/week2.png"/>
+  <img src="assets/week2.PNG"/>
 </p>
 
 # <p align=center>Completed Project Architecture Diagram </p>
