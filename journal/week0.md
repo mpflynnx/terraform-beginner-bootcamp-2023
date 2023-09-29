@@ -40,7 +40,7 @@ The objectives of week 0 where:
   - [install_terraform_cli script](#install_terraform_cli-script)
   - [Refactor the .gitpod.yml file](#refactor-the-gitpodyml-file-for-install_terraform_cli)
   - [Refactor Terraform installation script](#refactor-terraform-installation-script)
-  - [Environmental variables](#environmental-variables1)
+  - [Environmental variables](#environmental-variables)
   - [Gitpod environmental variables](#gitpod-environmental-variables)
   - [Terraform CLI fundamentals](#terraform-cli-fundamentals)
   - [Cloud provider resource names](#cloud-provider-resource-names)
