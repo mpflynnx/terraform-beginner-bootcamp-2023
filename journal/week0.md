@@ -408,8 +408,19 @@ The core Terraform workflow[<sup>[4]</sup>](#external-references) consists of th
 
 ### Cloud provider resource names
 
-When creating resources in the cloud, you mostly always need to provide a unique name that complies with the cloud providers naming convention for that resource. Hard coding a unique name is not advisable. It is best to use a tool to create a random name. In Terraform we can use [Random Provider - random_string](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) to do this. Always check the naming rules with the cloud providers documentation. Terraform cannot check naming rules.
+When creating resources in the cloud, you mostly always need to provide a unique name that complies with the cloud providers naming convention for that resource. Hard coding a unique name is not advisable. It is best to use a tool to create a random name. In Terraform we can use [Random Provider - random_string](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) to do this. Always check the naming rules with the cloud providers documentation. Terraform cannot check naming rules or names availability.
 
+Terraform can also generate a name for a bucket, if the bucket name is not given in the resource block.
+
+```tf
+resource "aws_s3_bucket" "website_bucket" {
+}
+```
+The above resource block will generate a name of the format shown below.
+
+```
+terraform-20230928133942847400000001
+```
 
 ### A simple main.tf example
 
