@@ -30,10 +30,13 @@ The objectives of week 1 where:
   - [Configuration drift](#configuration-drift)
   - [Refresh state](#refresh-state)
 - [Terraform Modules]()
+  - [Module sources](#module-sources)
+  - [Provider version constraints](#provider-version-constraints-in-modules)
+- [External References](#external-references)
 
 ## Standard Module Structure
 
-In Terraform everything is a module, the main.tf is the root module and must exist in the root folder of the project. The standard module structure<sup>[1]</sup> is a file and folder layout recommend by Terraform which allows for reusable modules distributed in separate repositories. Terraform tooling is built to understand the standard module structure and use that structure to generate documentation, index modules for the module registry, and more.
+In Terraform everything is a module, the main.tf is the root module and must exist in the root folder of the project. The standard module structure[<sup>[1]</sup>](#external-references) is a file and folder layout recommend by Terraform which allows for reusable modules distributed in separate repositories. Terraform tooling is built to understand the standard module structure and use that structure to generate documentation, index modules for the module registry, and more.
 
 A minimal module should comprise of four files.
 
@@ -65,7 +68,7 @@ We will copy the outputs block from main.tf and paste it into a new file outputs
 ## Terraform variables
 We will create a 'user_uuid' variable and use it to tag our existing S3 bucket. Terraform provides many ways for us to use variables.
 
-Terraform variables also referred to as Input variables<sup>[2]</sup> let you customise aspects of Terraform modules without altering the module's own source code.
+Terraform variables also referred to as Input variables[<sup>[2]</sup>](#external-references) let you customise aspects of Terraform modules without altering the module's own source code.
 
 When you declare variables in the root module of your configuration, you can set their values using CLI -var option, environment variables, a .tfvars file or in a Terraform Cloud workspace as Terraform variables.
 
@@ -175,7 +178,7 @@ $ aws s3api get-bucket-tagging --bucket lqqal0mpw69mtr21jx1jpuid5utwlego
 
 ## Terraform import
 
-There may be occasions when your want to bring deployed resources under the control of Terraform. Perhaps, the resources were deployed using others tools or the Terraform state file has been lost. This is when the import<sup>[3]</sup> command 'Terraform import' can help.
+There may be occasions when your want to bring deployed resources under the control of Terraform. Perhaps, the resources were deployed using others tools or the Terraform state file has been lost. This is when the import[<sup>[3]</sup>](#external-references) command 'Terraform import' can help.
 
 There are some limitation to the import command. For example not all resources can be imported, the provider documentation needs to be read, to determine if your deployed resources can be imported.
 
@@ -267,11 +270,11 @@ $ tf apply -refresh-only -auto-approve
 ```
 
 ## Terraform Modules
-Modules<sup>[4]</sup> are containers for multiple resources that are used together. A module consists of a collection of .tf and/or .tf.json files kept together in a directory.
+Modules[<sup>[4]</sup>](#external-references) are containers for multiple resources that are used together. A module consists of a collection of .tf and/or .tf.json files kept together in a folder.
 
 Modules are the main way to package and reuse resource configurations with Terraform.
 
-We will refactor the project to use nested modules. We will create one module for our terrahouse and two nested modules, one for the storage resources and one for the content delivery resources.
+We will refactor the project to use nested modules. We will create one module for our 'terrahouse' and two nested modules, one for the storage resources and one for the content delivery resources.
 
 ```
 $ project root/
@@ -289,32 +292,55 @@ $ project root/
        ├── LICENSE
 ```
 
-Notice, that the root module must contain outputs.tf and variables.tf as well as the nested module 'terrahouse_aws'. The variables and outputs need to be defined in the root module, but the variables do not require validation at the root module level only at the nested module level.
+Notice, that the root module must contain outputs.tf and variables.tf as well as the nested module 'terrahouse_aws'. The variables and outputs need to be defined in the root module as well as the nested module.
+
+### Accessing Child Module Outputs
+In a parent module, outputs of child modules are available in expressions as module.MODULE NAME.OUTPUT NAME. As shown below.
 
 #### Root module outputs.tf example
 ```tf
 output "bucket_name" {
-	description = "Bucket name for our static website hosting"
-	value = module.terrahouse_aws.bucket_name
+  description = "Bucket name for our static website hosting"
+  value = module.terrahouse_aws.bucket_name
 }
 ```
+Because the output values of a module are part of its user interface, you can briefly describe the purpose of each value using the optional 'description' argument.
+
+#### Nested module outputs.tf example
+```tf
+output "bucket_name" {
+  description = "Bucket name for our static website hosting"
+  value = aws_s3_bucket.website_bucket.bucket
+}
+```
+
+### Declaring an Input Variable
+Variables do not require validation at the root module level. Only validate at the nested module level.
 
 #### Root module variables.tf example
 ```tf
 variable "user_uuid" {
- 	description = "user_uuid for tagging bucket" 
+ description = "The UUID of the user"
  type = string
 }
+```
 
-variable "bucket_name" {
- description = "Bucket name for our static website hosting"
- type = string
+At the root and nested module level, you can briefly describe the purpose of each variable using the optional 'description' argument.
+
+#### nested module variables.tf example
+```tf
+variable "user_uuid" {
+  description = "The UUID of the user"
+  type        = string
+  validation {...not shown for brevity
+  ...
+  }
 }
 ```
 
 ### Module Sources
 
-The source<sup>[5]</sup> argument in a module block tells Terraform where to find the source code for the desired child module.
+The source[<sup>[5]</sup>](#external-references) argument in a module block tells Terraform where to find the source code for the desired child module.
 
 Terraform uses this during the module installation step of terraform init to download the source code to a directory on local disk so that other Terraform commands can use it.
 
@@ -354,9 +380,9 @@ A local path must begin with either ./ or ../ to indicate that a local path is i
 
 ### Provider Version Constraints in Modules
 
-Although provider configurations<sup>[5]</sup> are shared between modules, each module must declare its own provider requirements, so that Terraform can ensure that there is a single version of the provider that is compatible with all modules in the configuration and to specify the source address that serves as the global (module-agnostic) identifier for a provider.
+Although provider configurations[<sup>[6]</sup>](#external-references) are shared between modules, each module must declare its own provider requirements, so that Terraform can ensure that there is a single version of the provider that is compatible with all modules in the configuration and to specify the source address that serves as the global (module-agnostic) identifier for a provider.
 
-To declare that a module requires particular versions of a specific provider, use a required_providers block inside a terraform block:
+To declare that a module requires particular versions of a specific provider, use a required_providers block inside a terraform block.
 
 
 #### Nested module main.tf example
@@ -380,6 +406,134 @@ resource "aws_s3_bucket" "website_bucket" {
 
 A provider requirement says, for example, "This module requires version v5.19.0 of the provider hashicorp/aws and will refer to it as aws.
 
+## Static website hosting using Amazon S3 buckets
+
+You can use Amazon S3 to host a static website[<sup>[7]</sup>](#external-references). On a static website, individual webpages include static content. They might also contain client-side scripts.
+
+When you configure a bucket as a static website, you must enable static website hosting, configure an index document[<sup>[8]</sup>](#external-references), and set permissions.
+
+ An index document is a webpage that Amazon S3 returns when a request is made to the root of a website or any subfolder. For example, if a user enters http://www.example.com in the browser, the user is not requesting any specific page. In that case, Amazon S3 serves up the index document, which is sometimes referred to as the default page.
+
+ After you configure your bucket as a static website, when an error occurs, Amazon S3 returns an HTML error document. You can optionally configure your bucket with a custom error document[<sup>[9]</sup>](#external-references) so that Amazon S3 returns that document when an error occurs.
+
+ When you configure your bucket as a static website, the website is available at the AWS Region-specific website endpoint[<sup>[10]</sup>](#external-references) of the bucket. 
+
+ ## Using Terraform to configure S3 Bucket for static website hosting
+
+ To configure an S3 bucket as a static website we can use the AWS provider resource [aws_s3_bucket_website_configuration](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_website_configuration). 
+ 
+ **Caution:** Provider resources can change frequently, it is best practice to always refer to the latest documentation for the provider at [registry.terraform.io](https://registry.terraform.io/)
+
+#### Example resource block (provider version 5.19.0)
+ ```tf
+ resource "aws_s3_bucket_website_configuration" "website_configuration" {
+  bucket = aws_s3_bucket.website_bucket.bucket
+
+  index_document {
+    suffix = "index.html"
+  }
+
+  error_document {
+    key = "error.html"
+  }
+}
+ ```
+
+For our project we can append this resource block to the main.tf of the nested module 'terrahouse_aws'.
+
+## Using Terraform to output the website endpoint
+The AWS provider resource [aws_s3_bucket_website_configuration](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_website_configuration) exports an attribute called 'website_endpoint'. We can use this to output the Amazon S3 website endpoint, this will be the webpage that will display the index.html.
+
+For our project we can append the output block shown below to the outputs.tf of the nested module 'terrahouse_aws'.
+
+#### Example nested module resource block (provider version 5.19.0)
+```tf
+output "website_endpoint" {
+    description = "S3 Static Website hosting endpoint"
+  value = aws_s3_bucket_website_configuration.website_configuration.website_endpoint
+}
+```
+
+We also need to append an output block (shown below) to our root module outputs.tf file.
+
+#### Example root module resource block (provider version 5.19.0)
+```tf
+output "s3_website_endpoint" {
+  description = "S3 Static Website hosting endpoint"
+  value = module.terrahouse_aws.website_endpoint
+}
+```
+
+#### Example console output for s3_website_endpoint
+```bash
+Outputs:
+
+s3_website_endpoint = "terraform-20230928133942847400000001.s3-website.eu-west-2.amazonaws.com"
+```
+
+### Using Terraform to upload files
+
+The AWS provider resource [aws_s3_object](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_object) can be used to upload a file to an S3 bucket. We can use this to upload the index.html and error.html files for our S3 hosted static website. 
+
+**Note:** It is best practice for Terraform to be used to provision cloud infrastructure only. Uploading files should be handled by another method or application in a production environment. 
+
+#### Example nested module resource block (provider version 5.19.0)
+
+```tf
+resource "aws_s3_object" "index_html" {
+  bucket = aws_s3_bucket.website_bucket.bucket
+  key    = "index.html"
+  source = var.index_html_path
+
+  etag = filemd5(var.index_html_path)
+}
+```
+
+By default, Terraform cannot detect any changes to a files contents. Therefore, we can add an [etag](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag) to the file. The value of the etag will be the files md5 sum check. As the md5 sum check will change every time the file changes. Terraform does check for changes to the etag.
+
+Terraform has many [built-in functions](https://developer.hashicorp.com/terraform/language/expressions/function-calls). We will use the [filemd5](https://developer.hashicorp.com/terraform/language/functions/filemd5) function. 'filemd5' is a variant of md5 that hashes the contents of a given file rather than a literal string. This function will only accept UTF-8 text it cannot be used to create hashes for binary files.
+
+### Using Terraform to validate the existence of a file.
+
+It is best practice to define files and file paths as Terraform variables. We can then validate the variable with a validation block in the nested modules variables.tf. 
+
+The Terraform built-in function [fileexists](https://developer.hashicorp.com/terraform/language/functions/fileexists) checks that a file already exists on the disk.
+
+We will store our file path as a variable in the terraform.tfvars file.
+
+```
+index_html_path="/workspace/terraform-beginner-bootcamp-2023/public/index.html"
+```
+
+#### Example nested module variable block (Terraform version v1.5.x)
+
+```tf
+variable "index_html_path" {
+  description = "The file path for index.html"
+  type        = string
+
+  validation {
+    condition     = fileexists(var.index_html_path)
+    error_message = "File index.html does not exist."
+  }
+}
+```
+Nested module variables must also be defined in the root module main.tf.
+
+#### Example root module main.tf with nested module variable definition (Terraform version v1.5.x)
+```tf
+terraform {
+}
+
+module "terrahouse_aws" {
+  source = "./modules/terrahouse_aws"
+  user_uuid = var.user_uuid
+  bucket_name = var.bucket_name
+  index_html_path = var.index_html_path
+  error_html_path = var.error_html_path
+}
+```
+
 ## External References
 - [Standard Module Structure](https://developer.hashicorp.com/terraform/language/modules/develop/structure) <sup>[1]</sup>
 - [Input Variables](https://developer.hashicorp.com/terraform/language/values/variables) <sup>[2]</sup>
@@ -387,3 +541,7 @@ A provider requirement says, for example, "This module requires version v5.19.0 
 - [Terraform Modules](https://developer.hashicorp.com/terraform/language/modules) <sup>[4]</sup>
 - [Module Sources](https://developer.hashicorp.com/terraform/language/modules/sources) <sup>[5]</sup>
 - [Provider Version Constraints in Modules](https://developer.hashicorp.com/terraform/language/modules/develop/providers#provider-version-constraints-in-modules) <sup>[6]</sup>
+- [Hosting a static website using Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/WebsiteHosting.html) <sup>[7]</sup>
+- [Configuring an index document](https://docs.aws.amazon.com/AmazonS3/latest/userguide/IndexDocumentSupport.html) <sup>[8]</sup>
+- [Configuring a custom error document](https://docs.aws.amazon.com/AmazonS3/latest/userguide/CustomErrorDocSupport.html) <sup>[9]</sup>
+- [Static website endpoints](https://docs.aws.amazon.com/AmazonS3/latest/userguide/WebsiteEndpoints.html) <sup>[10]</sup>
