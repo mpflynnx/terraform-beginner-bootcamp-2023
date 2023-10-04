@@ -1001,7 +1001,7 @@ $ terraform apply --auto-approve
 1. Run the commands above in the order given. These command will login to Terraform Cloud, create a plan, and apply the plan. The terraform.tfstate file will be stored on our Terraform cloud account and not locally.
 1. Go on to the Terraform Cloud browser tab and navigate to Workspace 'terra-house-1'.
 1. Click on Runs, to see the completed current run.
-1. To confirm the AWS S3 bucket has been created, we can login to the AWS console and search for Amazon S3. Verify that the bucket names match. Alternatively type command:
+1. To confirm the AWS S3 bucket has been created, we can login to the [AWS Management Console](https://aws.amazon.com/console/) and search for Amazon S3. Verify that the bucket names match. Alternatively type command:
 ```bash
 aws s3 ls
 ```
