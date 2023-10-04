@@ -1,11 +1,19 @@
 # <p align=center>Terraform Beginner Bootcamp 2023 Week 1
 
-## Week 0 Objectives.
+## Week 1 Objectives.
 The objectives of week 1 where:
 - Create the Terraform recommended 'Standard Module Structure' for the project.
 - Tag an existing S3 bucket using a 'user_uuid' variable.
 - Explore configuration drift and how to fix it.
+- Understand Terraform import command.
 - Refactor the project into modules.
+- Setup Static Website Hosting on a S3 bucket.
+- Upload files to the S3 bucket using Terraform.
+- Create a Content Delivery Network with Amazon CloudFront.
+- Understand Local Values.
+- Use Origin Access Control to authenticate S3 bucket.
+- Setup S3 bucket policy for OAC.
+- Understand Data Sources.
 
 
 <p align="center">
@@ -32,6 +40,23 @@ The objectives of week 1 where:
 - [Terraform Modules]()
   - [Module sources](#module-sources)
   - [Provider version constraints](#provider-version-constraints-in-modules)
+- [Static website hosting using Amazon S3 buckets](#static-website-hosting-using-amazon-s3-buckets)
+- [Using Terraform to configure S3 Bucket for static website hosting](#using-terraform-to-configure-s3-bucket-for-static-website-hosting)
+  - [Using Terraform to output the website endpoint](#using-terraform-to-output-the-website-endpoint)
+  - [Using Terraform to upload files](#using-terraform-to-upload-files)
+  - [Using Terraform to validate the existence of a file](#using-terraform-to-validate-the-existence-of-a-file)
+- [Content Delivery Network](#content-delivery-network)
+  - [Amazon CloudFront](#amazon-cloudfront)
+- [Using Terraform to create a CloudFront Distribution](#using-terraform-to-create-a-cloudfront-distribution)
+  - [Local Values](#local-values)
+- [Origin Access Control (OAC)](#origin-access-control-oac)
+  - [Using Terraform to manage an AWS CloudFront Origin Access Control](#using-terraform-to-manage-an-aws-cloudfront-origin-access-control)
+- [Using Terraform to attach a policy to an S3 bucket resource](#using-terraform-to-attach-a-policy-to-an-s3-bucket-resource)
+  - [Data Sources](#data-sources)
+- [Testing CloudFront distribution](#testing-cloudfront-distribution)
+
+
+
 - [External References](#external-references)
 
 ## Standard Module Structure
@@ -283,6 +308,7 @@ $ project root/
 ├── main.tf
 ├── variables.tf
 ├── outputs.tf
+├── terraform.tfvars
 ├── modules/
    ├── terrahouse_aws/
        ├── README.md
@@ -441,7 +467,7 @@ When you configure a bucket as a static website, you must enable static website 
 
 For our project we can append this resource block to the main.tf of the nested module 'terrahouse_aws'.
 
-## Using Terraform to output the website endpoint
+### Using Terraform to output the website endpoint
 The AWS provider resource [aws_s3_bucket_website_configuration](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_website_configuration) exports an attribute called 'website_endpoint'. We can use this to output the Amazon S3 website endpoint, this will be the webpage that will display the index.html.
 
 For our project we can append the output block shown below to the outputs.tf of the nested module 'terrahouse_aws'.
@@ -484,16 +510,18 @@ resource "aws_s3_object" "index_html" {
   bucket = aws_s3_bucket.website_bucket.bucket
   key    = "index.html"
   source = var.index_html_path
+  content_type = "text/html"
 
   etag = filemd5(var.index_html_path)
 }
 ```
+It is best practice to define the content_type of the file, by using the [content_type](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_object#content_type) argument.  Standard MIME types are supported. All Valid MIME Types are valid for this input. As we know our file contains html we use "text/html". Terraform can detect changes to the content_type argument.
 
 By default, Terraform cannot detect any changes to a files contents. Therefore, we can add an [etag](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag) to the file. The value of the etag will be the files md5 sum check. As the md5 sum check will change every time the file changes. Terraform does check for changes to the etag.
 
 Terraform has many [built-in functions](https://developer.hashicorp.com/terraform/language/expressions/function-calls). We will use the [filemd5](https://developer.hashicorp.com/terraform/language/functions/filemd5) function. 'filemd5' is a variant of md5 that hashes the contents of a given file rather than a literal string. This function will only accept UTF-8 text it cannot be used to create hashes for binary files.
 
-### Using Terraform to validate the existence of a file.
+### Using Terraform to validate the existence of a file
 
 It is best practice to define files and file paths as Terraform variables. We can then validate the variable with a validation block in the nested modules variables.tf. 
 
@@ -534,6 +562,352 @@ module "terrahouse_aws" {
 }
 ```
 
+## Content Delivery Network
+
+A content delivery network (CDN)[<sup>[11]</sup>](#external-references) is a network of interconnected servers that speeds up webpage loading for data-heavy applications. CDN can stand for content delivery network or content distribution network. When a user visits a website, data from that website's server has to travel across the internet to reach the user's computer. If the user is located far from that server, it will take a long time to load a large file, such as a video or website image. Instead, the website content is stored on CDN servers geographically closer to the users and reaches their computers much faster.
+
+### Amazon CloudFront
+
+Amazon CloudFront is a content delivery network (CDN) service built for high performance, security, and developer convenience. Amazon CloudFront[<sup>[12]</sup>](#external-references) is a web service that speeds up distribution of static and dynamic web content, such as .html, .css, .js, and image files.
+
+The major reason we are using Amazon CloudFront for our project is the improved security and access controls available with no additional charges.
+
+By default Amazon S3 buckets are not publicly accessible. By routing our static website thru CloudFront we can attach
+security services and use Origin Access Controls while still keeping the S3 bucket data private.
+
+## Using Terraform to create a CloudFront distribution
+
+To make our Terraform project folder more manageable, we will refactor our nested module main.tf into two separate files. One file (resource_s3.tf) will deal with the Amazon S3 resources and the second file (resource_cdn.tf) will deal with the Amazon CloudFront resources.
+
+#### Project folder after refactor
+```
+$ project root/
+.
+├── README.md
+├── main.tf
+├── variables.tf
+├── outputs.tf
+├── terraform.tfvars
+├── modules/
+   ├── terrahouse_aws/
+       ├── resource_cdn.tf
+       ├── resource_s3.tf   
+       ├── README.md
+       ├── variables.tf
+       ├── main.tf
+       ├── outputs.tf
+       ├── LICENSE
+```
+
+
+We want to use CloudFront to distribute our content, so we have to create a distribution[<sup>[13]</sup>](#external-references). We will create a CloudFront distribution to tell CloudFront we want content to be delivered from our S3 bucket.
+
+To create a CloudFront distribution we can use the AWS provider resource [aws_cloudfront_distribution](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_distribution).
+
+**Note:** CloudFront distributions take about 15 minutes to reach a deployed state after creation or modification. During this time, deletes to resources will be blocked.
+
+Caution: Provider resources can change frequently, it is best practice to always refer to the latest documentation for the provider at registry.terraform.io
+
+#### resource_cdn.tf
+
+```tf
+resource "aws_cloudfront_distribution" "s3_distribution" {
+  origin {
+    domain_name              = aws_s3_bucket.website_bucket.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.default.id
+    origin_id                = local.s3_origin_id
+  }
+
+  enabled             = true
+  is_ipv6_enabled     = true
+  comment             = "Static website hosting for: ${var.bucket_name}"
+  default_root_object = "index.html"
+
+  default_cache_behavior {
+    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = local.s3_origin_id
+
+    forwarded_values {
+      query_string = false
+
+      cookies {
+        forward = "none"
+      }
+    }
+
+    viewer_protocol_policy = "allow-all"
+    min_ttl                = 0
+    default_ttl            = 3600
+    max_ttl                = 86400
+  }
+
+  price_class = "PriceClass_200"
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+      locations        = []
+    }
+  }
+
+  tags = {
+    UserUuid = var.user_uuid
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+}
+
+```
+
+### Local Values
+
+In the aws_cloudfront_distribution resource block there is the following text 'local.s3_origin_id' used in multiple places. This is known as a [Local Value](https://developer.hashicorp.com/terraform/language/values/locals) or 'Locals' in Terraform. A local value assigns a name to an expression, so you can use the name multiple times within a module instead of repeating the expression.
+
+Local values are created by a locals block (plural), but you reference them as attributes on an object named local (singular).
+
+A local value can only be accessed in expressions within the module where it was declared. Therefore the example below should appear in the same file as the aws_cloudfront_distribution resource block were it is accessed.
+
+#### resource_cdn.tf
+```tf
+locals {
+  s3_origin_id = "MyS3Origin"
+}
+```
+
+## Origin Access Control (OAC)
+
+CloudFront provides two ways to send authenticated requests to an Amazon S3 origin: origin access control (OAC)[<sup>[14]</sup>](#external-references) and origin access identity (OAI). As of October 2023 Amazon recommends OAC over OAI, because it supports:
+
+- All Amazon S3 buckets in all AWS Regions, including opt-in Regions launched after December 2022
+
+- Amazon S3 server-side encryption with AWS KMS (SSE-KMS)
+
+- Dynamic requests (PUT and DELETE) to Amazon S3
+
+To give the OAC permission to access the S3 bucket, use an S3 bucket policy to allow the CloudFront service principal (cloudfront.amazonaws.com) to access the bucket. Use a Condition element in the policy to allow CloudFront to access the bucket only when the request is on behalf of the CloudFront distribution that contains the S3 origin.
+
+### Using Terraform to manage an AWS CloudFront Origin Access Control
+
+We can use the AWS provider resource [aws_cloudfront_origin_access_control](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_origin_access_control) to manage an AWS CloudFront Origin Access Control. An OAC is used by CloudFront Distributions with an Amazon S3 bucket as the origin.
+
+#### resource_cdn.tf
+```tf
+resource "aws_cloudfront_origin_access_control" "default" {
+  name = "OAC ${var.bucket_name}"
+  description = "Origin Access Controls for Static Website Hosting ${var.bucket_name}"
+  origin_access_control_origin_type = "s3"
+  signing_behavior = "always"
+  signing_protocol = "sigv4"
+}
+```
+
+## Using Terraform to attach a policy to an S3 bucket resource
+
+To attach a policy to our S3 bucket we can use the AWS provider resource [aws_s3_bucket_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_policy).
+
+#### resource_s3.tf
+```tf
+resource "aws_s3_bucket_policy" "bucket_policy" {
+  bucket = aws_s3_bucket.website_bucket.id
+  policy = (..Text of the policy..)
+}
+
+```
+
+This resource supports the following arguments:
+
+- bucket - (Required) Name of the bucket to which to apply the policy.
+- policy - (Required) Text of the policy. Although this is a bucket policy rather than an IAM policy, the [aws_iam_policy_document](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) data source may be used, so long as it specifies a principal. For more information about building AWS IAM policy documents with Terraform, see the [AWS IAM Policy Document Guide](https://learn.hashicorp.com/terraform/aws/iam-policy). Note: Bucket policies are limited to 20 KB in size.
+
+In Terraform v1.5.0 and later, you can use an [import](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_policy#import) block to import S3 bucket policies using the bucket name. 
+
+We will not import the policy but define it as a multi-line heredoc string inside a aws_s3_bucket_policy resource block.
+
+The following [example](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html) is an S3 bucket policy that allows CloudFront Origin Access Control (OAC) to access an S3 origin.
+
+#### Example S3 bucket policy that allows read-only access to a CloudFront OAC
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": {
+        "Sid": "AllowCloudFrontServicePrincipalReadOnly",
+        "Effect": "Allow",
+        "Principal": {
+            "Service": "cloudfront.amazonaws.com"
+        },
+        "Action": "s3:GetObject",
+        "Resource": "arn:aws:s3:::<S3 bucket name>/*",
+        "Condition": {
+            "StringEquals": {
+                "AWS:SourceArn": "arn:aws:cloudfront::<AWS account ID>:distribution/<CloudFront distribution ID>"
+            }
+        }
+    }
+}
+```
+
+For simple policies or one-off configurations, we can use the above example inside of aws_s3_bucket_policy resource block as a multi-line heredoc string. To use the example, first the json syntax needs refactoring into HCL syntax. In this case the : (colon) is replaced with = (equals) symbol. 
+
+We can also use ${...}-style notation interpolation for policy variables to save hardcoding.
+
+We can wrap the policy inside the Terraform built-in function [jsonencode](https://developer.hashicorp.com/terraform/language/functions/jsonencode). This function maps [Terraform language values](https://developer.hashicorp.com/terraform/language/expressions/types) to JSON values. Therefore passing the policy into the correct JSON syntax when you run the 'terraform apply' command.
+
+#### Refactored S3 bucket policy in HCL syntax
+```tf
+ 1  {
+ 2      "Version" = "2012-10-17",
+ 3      "Statement" = {
+ 4          "Sid" = "AllowCloudFrontServicePrincipalReadOnly",
+ 5          "Effect" = "Allow",
+ 6          "Principal" = {
+ 7              "Service" = "cloudfront.amazonaws.com"
+ 8          },
+ 9          "Action" = "s3:GetObject",
+10          "Resource" = "arn:aws:s3:::<S3 bucket name>/*",
+11          "Condition" = {
+12              "StringEquals" = {
+13                  "AWS:SourceArn" = "arn:aws:cloudfront::<AWS account ID>:distribution/<CloudFront distribution ID>"
+14              }
+15          }
+16     }
+17  }
+```
+
+In the above example of an S3 bucket policy, we must provide the 'S3 bucket' name at line 10, the 'AWS account ID' and 'CloudFront distribution ID' at line 13.
+
+We can use ${...}-style notation interpolation for these to prevent hardcoding.
+
+The S3 bucket name can be obtained from provider resource 'aws_s3_bucket' reference and id. 
+```tf
+${aws_s3_bucket.website_bucket.id}
+```
+
+The AWS account ID can be obtained using [AWS provider Data Source: aws_caller_identity](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity)
+
+This data source exports the following attributes:
+
+- account_id - AWS Account ID number of the account that owns or contains the calling entity.
+- arn - ARN associated with the calling entity.
+- id - Account ID number of the account that owns or contains the calling entity.
+- user_id - Unique identifier of the calling entity.
+
+### Data Sources
+Data sources[<sup>[15]</sup>](#external-references) allow Terraform to use information defined outside of Terraform. Each provider may offer data sources alongside its set of resource types.
+
+A data source is accessed via a special kind of resource known as a data resource, declared using a data block:
+
+
+#### main.tf (nested module)
+```tf
+data "aws_caller_identity" "current" {}
+```
+
+A data block requests that Terraform read from a given data source ("aws_caller_identity") and export the result under the given local name ("current"). The name is used to refer to this resource from elsewhere in the same Terraform module, but has no significance outside of the scope of a module.
+
+With Data Sources we can use interpolation in the bucket policy to define the AWS account ID:
+
+```tf
+${data.aws_caller_identity.current.account_id}
+```
+
+We can obtain the CloudFront distribution ID using the provider resource [aws_cloudfront_distribution](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_distribution) reference and id.
+
+```tf
+${aws_cloudfront_distribution.s3_distribution.id}
+```
+
+Therefore the completed line13 would be:
+
+```tf
+13   "AWS:SourceArn" = "arn:aws:cloudfront::${data.aws_caller_identity.current.account_id}:distribution/${aws_cloudfront_distribution.s3_distribution.id}"
+
+```
+
+Alternatively, we could have used the "caller arn" from the [AWS provider Data Source: aws_caller_identity](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity). 
+
+Therefore the completed line13 would be:
+
+```tf
+13   "AWS:SourceArn" = data.aws_caller_identity.current.arn
+
+```
+
+### Testing CloudFront distribution
+After modifying the project files accordingly, we can now attempt to apply the Terraform project.
+
+As seen before we should run the following
+commands in the terminal:
+
+```bash
+$ tf init
+```
+
+```bash
+$ tf plan
+```
+
+#### Expected console output after 'tf plan'
+```bash
+.
+.
+Plan: 7 to add, 0 to change, 0 to destroy.
+.
+.
+```
+
+```bash
+$ tf apply --auto-approve
+```
+
+#### Expected console output
+
+```bash
+.
+.
+Apply complete! Resources: 7 added, 0 changed, 0 destroyed.
+.
+.
+```
+
+We should now login as a non-root user in the [AWS Management Console](https://aws.amazon.com/console/).
+
+1. Navigate to CloudFront
+1. Select the new Distribution
+1. Under Details, copy to clipboard the Distribution domain name
+
+#### Example: Distribution domain name
+```
+https://d199pk5tx04fnx.cloudfront.net
+```
+
+1. Open a new browser tab and paste the Distribution domain name and press enter.
+
+1. You should now be presented with the contents of the public/index.html file.
+
+This validates the OAC and S3 bucket policy.
+
+You can view the S3 bucket policy in the [AWS Management Console](https://aws.amazon.com/console/) by navigating to Amazon S3, selecting the new bucket.
+Click on Permissions, scroll down to view the bucket policy.
+
+Now tear down the deployed infrastructure with:
+
+```bash
+$ tf destroy --auto-approve
+```
+
+#### Expected console output
+
+```bash
+.
+.
+Destroy complete! Resources: 7 destroyed.
+.
+.
+```
+
 ## External References
 - [Standard Module Structure](https://developer.hashicorp.com/terraform/language/modules/develop/structure) <sup>[1]</sup>
 - [Input Variables](https://developer.hashicorp.com/terraform/language/values/variables) <sup>[2]</sup>
@@ -545,3 +919,8 @@ module "terrahouse_aws" {
 - [Configuring an index document](https://docs.aws.amazon.com/AmazonS3/latest/userguide/IndexDocumentSupport.html) <sup>[8]</sup>
 - [Configuring a custom error document](https://docs.aws.amazon.com/AmazonS3/latest/userguide/CustomErrorDocSupport.html) <sup>[9]</sup>
 - [Static website endpoints](https://docs.aws.amazon.com/AmazonS3/latest/userguide/WebsiteEndpoints.html) <sup>[10]</sup>
+- [What Is A CDN (Content Delivery Network)?](https://aws.amazon.com/what-is/cdn/) <sup>[11]</sup>
+- [What is Amazon CloudFront?](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html) <sup>[12]</sup>
+- [Working with distributions](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-working-with.html) <sup>[13]</sup>
+- [Restricting access to an Amazon S3 origin](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html) <sup>[14]</sup>
+- [Data Sources](https://developer.hashicorp.com/terraform/language/data-sources) <sup>[15]</sup>
