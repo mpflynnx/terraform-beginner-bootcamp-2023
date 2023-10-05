@@ -24,6 +24,11 @@ resource "aws_s3_object" "index_html" {
   content_type = "text/html"
 
   etag = filemd5(var.index_html_path)
+
+  lifecycle {
+    replace_triggered_by = [ terraform_data.content_version ]
+    ignore_changes = [ etag ]
+  }
 }
 
 resource "aws_s3_object" "error_html" {
@@ -54,4 +59,8 @@ resource "aws_s3_bucket_policy" "bucket_policy" {
         }
     }
   })
+}
+
+resource "terraform_data" "content_version" {
+  input = var.content_version
 }

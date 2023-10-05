@@ -14,10 +14,15 @@ The objectives of week 1 where:
 - Use Origin Access Control to authenticate S3 bucket.
 - Setup S3 bucket policy for OAC.
 - Understand Data Sources.
+- Understand the Lifecycle Meta Argument
+- Implement content versioning
+- Understand terraform_data resource type
 
 
 <p align="center">
+
   <img src="../assets/week1.PNG"/>
+
 </p>
 
 # <p align=center>Week 1 Architecture Diagram </p>
@@ -54,6 +59,9 @@ The objectives of week 1 where:
 - [Using Terraform to attach a policy to an S3 bucket resource](#using-terraform-to-attach-a-policy-to-an-s3-bucket-resource)
   - [Data Sources](#data-sources)
 - [Testing CloudFront distribution](#testing-cloudfront-distribution)
+- [The lifecycle Meta-Argument](#the-lifecycle-meta-argument)
+- [Trigger update by a variable change](#trigger-update-by-a-variable-change)
+  - [The terraform_data Managed Resource Type](#the-terraform_data-managed-resource-type)
 
 
 
@@ -906,6 +914,145 @@ $ tf destroy --auto-approve
 Destroy complete! Resources: 7 destroyed.
 .
 .
+```
+
+## The lifecycle Meta-Argument
+By using the [lifecycle Meta-Argument](https://developer.hashicorp.com/terraform/language/meta-arguments/lifecycle#syntax-and-arguments) we can prevent Terraform from automatically making changes to the infrastructure.
+
+Currently, when we update the public/index.html file of our project and run a 'terraform plan' command, Terraform picks up the change to the index.html files etag, and will plan to upload the new version of the file. To have better control of when the file should be updated on the infrastructure we can use a lifecycle block and use [ignore_changes](https://developer.hashicorp.com/terraform/language/meta-arguments/lifecycle#ignore_changes) on the etag of files.
+
+#### resource_s3.tf
+```tf
+resource "aws_s3_object" "index_html" {
+  ..
+  ..
+  lifecycle {
+    ignore_changes = [ etag ]
+  }
+}
+```
+
+## Trigger update by a variable change
+We would like the 'terraform plan' command to only plan to update the index.html file when a variable changes.
+
+We will create a new variable called 'content_version' this variable will store only positive integers greater than zero.
+
+#### Nested module variables.tf with validation
+```tf
+variable "content_version" {
+  type        = number
+  description = "Content version number"
+  default     = 1
+  validation {
+    condition     = var.content_version > 0 && can(var.content_version)
+    error_message = "Content version must be a positive integer"
+  }
+}
+```
+
+We should update the root modules variables.tf and main.tf accordingly.
+
+#### root module main.tf additions
+```tf
+  ..
+  content_version = var.content_version
+}
+```
+
+#### root module variables.tf additions
+```tf
+..
+
+variable "content_version" {
+  description = "Content version number"
+  type        = number
+}
+```
+
+As we are using a local terraform.tfvars file for variables, we will set a valid value for the variable in this file.
+
+#### Root module terraform.tfvars
+```tf
+content_version = 1
+```
+
+### The terraform_data Managed Resource Type
+
+We will use the [terraform_data](https://developer.hashicorp.com/terraform/language/resources/terraform-data) resource as a means to keep track of the 'content_version' variable. 
+
+The terraform_data resource implements the standard resource lifecycle, but does not directly take any other actions. You can use the terraform_data resource without requiring or configuring a provider.
+
+The terraform_data resource is useful for storing values which need to follow a managed resource lifecycle, and for triggering provisioners when there is no other logical managed resource in which to place them.
+
+To use terraform_data we create a new resource block in our nested modules resource_s3.tf file.
+
+#### resource_s3.tf
+```tf
+resource "terraform_data" "content_version" {
+  input = var.content_version
+}
+```
+
+We can now use this resource inside the lifecycle block to trigger on changes to the variable 'content_version'.
+
+By using the lifecycle [replace_triggered_by](https://developer.hashicorp.com/terraform/language/meta-arguments/lifecycle#replace_triggered_by) argument, we can trigger replacement when a change to the input value of resource 'content_version' occurs.
+
+Therefore, 'terraform plan' will ignore changes to a files etag, but it will plan to update the file, if the files etag has changed and the 'content_version' variable has changed.
+
+#### resource_s3.tf
+```tf
+resource "aws_s3_object" "index_html" {
+  ..
+  ..
+  lifecycle {
+    ignore_changes = [ etag ]
+    replace_triggered_by = [  ]
+  }
+}
+```
+
+#### Expected console output
+The expected 'terrafrom plan' output after the index.html file and variable 'content_version' have been changed.
+
+```bash
+..
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are
+indicated with the following symbols:
+  ~ update in-place
+-/+ destroy and then create replacement
+
+Terraform will perform the following actions:
+
+  # module.terrahouse_aws.aws_s3_object.index_html will be replaced due to changes in replace_triggered_by
+-/+ resource "aws_s3_object" "index_html" {
+      + acl                    = (known after apply)
+      ~ bucket_key_enabled     = false -> (known after apply)
+      + checksum_crc32         = (known after apply)
+      + checksum_crc32c        = (known after apply)
+      + checksum_sha1          = (known after apply)
+      + checksum_sha256        = (known after apply)
+      ~ etag                   = "db4ea4a12c3184e8eb099288e0a9e9b0" -> "6b6c63f0c7f4c5812b33133265c32269"
+      ~ id                     = "index.html" -> (known after apply)
+      + kms_key_id             = (known after apply)
+      - metadata               = {} -> null
+      ~ server_side_encryption = "AES256" -> (known after apply)
+      ~ storage_class          = "STANDARD" -> (known after apply)
+      - tags                   = {} -> null
+      ~ tags_all               = {} -> (known after apply)
+      + version_id             = (known after apply)
+        # (5 unchanged attributes hidden)
+    }
+
+  # module.terrahouse_aws.terraform_data.content_version will be updated in-place
+  ~ resource "terraform_data" "content_version" {
+        id     = "2eb9fdb8-03ba-c669-c0c3-13ec8bbedfbe"
+      ~ input  = 1 -> 2
+      ~ output = 1 -> (known after apply)
+    }
+
+Plan: 1 to add, 1 to change, 1 to destroy.
+..
 ```
 
 ## External References
