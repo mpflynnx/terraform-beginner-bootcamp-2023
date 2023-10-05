@@ -17,6 +17,8 @@ The objectives of week 1 where:
 - Understand the Lifecycle Meta Argument
 - Implement content versioning
 - Understand terraform_data resource type
+- Understand Provisioners
+- Use a provisioner to invalidate Amazon CloudFront distributions
 
 
 <p align="center">
@@ -62,6 +64,10 @@ The objectives of week 1 where:
 - [The lifecycle Meta-Argument](#the-lifecycle-meta-argument)
 - [Trigger update by a variable change](#trigger-update-by-a-variable-change)
   - [The terraform_data Managed Resource Type](#the-terraform_data-managed-resource-type)
+- [Invalidating the Amazon CloudFront distribution cache](#invalidating-the-amazon-cloudfront-distribution-cache)
+- [Using Terraform to invalidate a Amazon CloudFront distribution cache](#using-terraform-to-invalidate-a-amazon-cloudfront-distribution-cache)
+  - [local-exec provisioner usage](#local-exec-provisioner-usage)
+  - [Heredoc strings](#heredoc-strings)
 
 
 
@@ -732,7 +738,7 @@ This resource supports the following arguments:
 
 In Terraform v1.5.0 and later, you can use an [import](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_policy#import) block to import S3 bucket policies using the bucket name. 
 
-We will not import the policy but define it as a multi-line heredoc string inside a aws_s3_bucket_policy resource block.
+We will not import the policy but define it inside an aws_s3_bucket_policy resource block.
 
 The following [example](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html) is an S3 bucket policy that allows CloudFront Origin Access Control (OAC) to access an S3 origin.
 
@@ -757,7 +763,7 @@ The following [example](https://docs.aws.amazon.com/AmazonCloudFront/latest/Deve
 }
 ```
 
-For simple policies or one-off configurations, we can use the above example inside of aws_s3_bucket_policy resource block as a multi-line heredoc string. To use the example, first the json syntax needs refactoring into HCL syntax. In this case the : (colon) is replaced with = (equals) symbol. 
+For simple policies or one-off configurations, we can use the above example inside of aws_s3_bucket_policy resource block. To use the example, first the json syntax needs refactoring into HCL syntax. In this case the : (colon) is replaced with = (equals) symbol. 
 
 We can also use ${...}-style notation interpolation for policy variables to save hardcoding.
 
@@ -1012,7 +1018,7 @@ resource "aws_s3_object" "index_html" {
 ```
 
 #### Expected console output
-The expected 'terrafrom plan' output after the index.html file and variable 'content_version' have been changed.
+The expected 'terraform plan' output after the index.html file and variable 'content_version' have been changed.
 
 ```bash
 ..
@@ -1053,6 +1059,154 @@ Terraform will perform the following actions:
 
 Plan: 1 to add, 1 to change, 1 to destroy.
 ..
+```
+
+## Invalidating the Amazon CloudFront distribution cache
+
+Old versions of our static website files will remain in the CloudFront edge locations until the new index.html is requested at the edge location and not when we update the index.html.
+
+We cannot control when CloudFront starts to serve the new files. By default, CloudFront caches files expire in edge locations after 24 hours. So, an old version could potentially be served up for 24 hours.
+
+To force the [update](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/UpdatingExistingObjects.html) of our static website across all edge locations, we can invalidate the cache when the website changes. Therefore all edge locations will serve the new website immediately.
+
+### Using AWS CLI to invalidate a Amazon CloudFront distribution cache
+
+We can use the AWS Command Line Interface (AWS CLI) to [invalidate the website files](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html) from the edge cache.
+
+To invalidate files, you can specify either the path for individual files or a path that ends with the * wildcard, which might apply to one file or to many, as shown in the following examples:
+
+- /public/index.html
+
+- "/public/index*"
+
+- "/public/*"
+
+- "/*"
+
+If you specify a path that includes the * wildcard, you must use quotes (") around the path.
+
+#### AWS CLI command example
+```bash
+aws cloudfront create-invalidation --distribution-id distribution_ID --paths "/*"
+```
+
+As our static website has a small number of files we shall use the "/*" to invalidate all files.
+
+## Using Terraform to invalidate a Amazon CloudFront distribution cache
+
+The [AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs) currently has no way for us to invalidate the CloudFront distribution cache.
+
+We can use the AWS CLI commands from within a Terraform project, with the use of the local-exec [provisioner](https://developer.hashicorp.com/terraform/language/resources/provisioners/syntax). 
+
+Hashicorp recommends a measure of pragmatism with the use of local-exec provisoners and suggests usage a temporary workaround. Many other solutions are a better fit for such actions. [Ansible](https://www.ansible.com/) for example.
+
+The local-exec provisioner runs on the compute that is used to run terraform plan. 
+
+There is a remote-exec provisioner which can be used with a remote compute. Using this may require extra files to be configured or credentials to be passed, such as ssh credentials.
+
+### local-exec provisioner usage
+
+Our requirements for the use of the local-exec provisioner are:
+
+1. To be triggered upon a variable change (content_version)
+1. Run an AWS CLI command to invalidate the CloudFront cache.
+
+We will create a second terraform_data resource called 'invalidate_cache' which will be triggered by the first terraform_data resource 'content_version'.
+
+The terraform_data resource will then use a local-exec provisioner to execute the AWS CLI command to invalidate the CloudFront cache.
+
+
+#### resources_cdn.tf
+
+```tf
+..
+
+resource "terraform_data" "invalidate_cache" {
+  triggers_replace = terraform_data.content_version.output
+  provisioner "local-exec" {
+    command = // AWS CLI command
+  }
+}
+
+```
+
+### Heredoc strings
+
+It can be hard to read long CLI commands in files. We can break the commands across multiple lines, but still it can be hard to read. So to make it more clear we can use [heredoc style strings](https://developer.hashicorp.com/terraform/language/expressions/strings#heredoc-strings), which allow for multi-line strings to be expressed more clearly in files.
+
+#### AWS CLI command heredoc example
+
+```bash
+<<EOT
+aws cloudfront create-invalidation\
+ --distribution-id distribution_ID\
+ --paths "/*"
+EOT
+```
+
+In heredoc strings, we can use a interpolation sequence to evaluate an expression, using ${ .. }.
+
+#### resources_cdn.tf
+```tf
+..
+
+resource "terraform_data" "invalidate_cache" {
+  triggers_replace = terraform_data.content_version.output
+  provisioner "local-exec" {
+    command = <<EOT
+aws cloudfront create-invalidation \
+--distribution-id "${aws_cloudfront_distribution.s3_distribution.id}" \
+--paths "/*" 
+    EOT
+  }
+}
+```
+
+#### Expected console output
+The expected 'terraform plan' output after the index.html file and variable 'content_version' have been changed.
+
+```bash
+Terraform used the selected providers to generate the following execution plan. Resource actions are
+indicated with the following symbols:
+  ~ update in-place
+-/+ destroy and then create replacement
+
+Terraform will perform the following actions:
+
+  # module.terrahouse_aws.aws_s3_object.index_html will be replaced due to changes in replace_triggered_by
+-/+ resource "aws_s3_object" "index_html" {
+      + acl                    = (known after apply)
+      ~ bucket_key_enabled     = false -> (known after apply)
+      + checksum_crc32         = (known after apply)
+      + checksum_crc32c        = (known after apply)
+      + checksum_sha1          = (known after apply)
+      + checksum_sha256        = (known after apply)
+      ~ etag                   = "db4ea4a12c3184e8eb099288e0a9e9b0" -> "c838a95df2a448cc7a6218ebbb93316d"
+      ~ id                     = "index.html" -> (known after apply)
+      + kms_key_id             = (known after apply)
+      - metadata               = {} -> null
+      ~ server_side_encryption = "AES256" -> (known after apply)
+      ~ storage_class          = "STANDARD" -> (known after apply)
+      - tags                   = {} -> null
+      ~ tags_all               = {} -> (known after apply)
+      + version_id             = (known after apply)
+        # (5 unchanged attributes hidden)
+    }
+
+  # module.terrahouse_aws.terraform_data.content_version will be updated in-place
+  ~ resource "terraform_data" "content_version" {
+        id     = "fdd16ba0-3034-6171-be0a-063e1f7177d3"
+      ~ input  = 1 -> 2
+      ~ output = 1 -> (known after apply)
+    }
+
+  # module.terrahouse_aws.terraform_data.invalidate_cache must be replaced
+-/+ resource "terraform_data" "invalidate_cache" {
+      ~ id               = "b8048c4b-ab60-7652-2d4b-8f5abaebff6f" -> (known after apply)
+      ~ triggers_replace = 1 -> (known after apply) # forces replacement
+    }
+
+Plan: 2 to add, 1 to change, 2 to destroy.
 ```
 
 ## External References
