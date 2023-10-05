@@ -10,10 +10,15 @@ variable "bucket_name" {
 
 variable "index_html_path" {
   description = "The file path for index.html"
-  type        = string
+  type = string
 }
 
 variable "error_html_path" {
   description = "The file path for error.html"
-  type        = string
+  type = string
+}
+
+variable "content_version" {
+  description = "Content version number"
+  type = number
 }
