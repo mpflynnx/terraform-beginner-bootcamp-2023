@@ -18,7 +18,10 @@ The objectives of week 1 where:
 - Implement content versioning
 - Understand terraform_data resource type
 - Understand Provisioners
-- Use a provisioner to invalidate Amazon CloudFront distributions
+- Use a provisioner to invalidate Amazon CloudFront distribution cache
+- Use 'for_each' meta-argument to upload multiple files from a folder
+- Understand the 'fileset' function
+- Use the Terraform Console to test expressions
 
 
 <p align="center">
@@ -65,11 +68,14 @@ The objectives of week 1 where:
 - [Trigger update by a variable change](#trigger-update-by-a-variable-change)
   - [The terraform_data Managed Resource Type](#the-terraform_data-managed-resource-type)
 - [Invalidating the Amazon CloudFront distribution cache](#invalidating-the-amazon-cloudfront-distribution-cache)
+  - [Using AWS CLI to invalidate a Amazon CloudFront distribution cache](#using-aws-cli-to-invalidate-a-amazon-cloudfront-distribution-cache)
 - [Using Terraform to invalidate a Amazon CloudFront distribution cache](#using-terraform-to-invalidate-a-amazon-cloudfront-distribution-cache)
   - [local-exec provisioner usage](#local-exec-provisioner-usage)
   - [Heredoc strings](#heredoc-strings)
-
-
+- [Uploading multiple files with Terraform using the 'for_each' meta-argument](#uploading-multiple-files-with-terraform-using-the-for_each-meta-argument)
+  - [fileset function](#fileset-function)
+  - [Terraform Console](#terraform-console)
+  - [Using the for_each meta-argument](#using-the-for_each-meta-argument)
 
 - [External References](#external-references)
 
@@ -1065,7 +1071,7 @@ Plan: 1 to add, 1 to change, 1 to destroy.
 
 Old versions of our static website files will remain in the CloudFront edge locations until the new index.html is requested at the edge location and not when we update the index.html.
 
-We cannot control when CloudFront starts to serve the new files. By default, CloudFront caches files expire in edge locations after 24 hours. So, an old version could potentially be served up for 24 hours.
+We cannot control when CloudFront starts to serve the new files. By default, CloudFront cached files expire in edge locations after 24 hours. So, an old version could potentially be served for up to 24 hours.
 
 To force the [update](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/UpdatingExistingObjects.html) of our static website across all edge locations, we can invalidate the cache when the website changes. Therefore all edge locations will serve the new website immediately.
 
@@ -1209,6 +1215,170 @@ Terraform will perform the following actions:
 Plan: 2 to add, 1 to change, 2 to destroy.
 ```
 
+## Uploading multiple files with Terraform using the 'for_each' meta-argument
+
+Usually a Static Website will have many more files than index.html and error.html. There may be image files, css or javascript files.
+
+We will update our index.html to display two images, image1.png and image2.jpg. These image files will be stored in the projects /public/assets/ folder.
+
+We can use the [for_each](https://developer.hashicorp.com/terraform/language/meta-arguments/for_each) meta-argument to upload all files stored in a public/assets/ folder. Technically Terraform should not be use to upload files, but doing so for this project allows us to understand the use of the 'for_each' meta-argument.
+
+for_each is a meta-argument defined by the Terraform language. It can be used with modules and with every resource type.
+
+The for_each meta-argument can be used to save writing separate resource blocks for each of the object types if they are of the same type. Previously, we wrote two resource blocks, one block to upload index.html and another block to upload error.html. We could have used a for_each to save writing the second block.
+
+The for_each meta-argument accepts a map or a set of strings, and creates an instance for each item in that map or set. Each instance has a distinct infrastructure object associated with it, and each is separately created, updated, or destroyed when the configuration is applied.
+
+### fileset Function
+To use 'for_each', we must first create a set of strings. The set shall contain all the files inside the public/assets folder. Terraform has a built-in function called [fileset](https://developer.hashicorp.com/terraform/language/functions/fileset). fileset enumerates a set of regular file names given a path and pattern. The path is automatically removed from the resulting set of file names and any result still containing path separators always returns forward slash (/) as the path separator for cross-system compatibility.
+
+The set will have no duplicate elements and discard the ordering of the elements. Since Terraform's concept of a set requires all of the elements to be of the same type, mixed-typed elements will be converted to the most general type.
+
+A common use of fileset is to create one resource instance per matched file, using the for_each meta-argument:
+
+```bash
+fileset(path, pattern)
+```
+
+Some supported pattern matches:
+
+- "*" matches any sequence of non-separator characters
+- "**"  matches any sequence of characters, including separator characters
+- "?" - matches any single non-separator character
+- "{alternative1,...}" - matches a sequence of characters if one of the comma-separated alternatives matches
+
+### Terraform console
+The [terraform console](https://developer.hashicorp.com/terraform/cli/commands/console) command provides an interactive console for evaluating expressions. We can use this to understand the 'fileset' function.
+
+To use the terraform console, as a mininium a main.tf must exist and terraform init run to create a state file. The terraform console command will read the Terraform configuration in the current working directory and the Terraform state file from the configured backend so that interpolations can be tested against both the values in the configuration and the state file.
+
+Executing 'terraform console' will drop you into an interactive shell. From here you can try out built-in functions like 'fileset' and check the result.
+
+Create a set for all files in public/assets folder.
+```bash
+> fileset("${path.root}/public/assets/", "*")
+```
+
+#### Console output
+```bash
+toset([
+  "image1.jpg",
+  "image2.png",
+  "image3.gif",
+  "stylesheet.css",
+])
+```
+
+Filter on file extensions .jpg and .png.
+
+```bash
+fileset("${path.root}/public/assets/", "*.{jpg,png}")
+```
+
+#### Console output
+```bash
+toset([
+  "image1.jpg",
+  "image2.png",
+])
+```
+
+Now we understand how to create a set with the filenames of all the .jpg and .png files in folder ${path.root}/public/assets
+
+
+### Using the for_each meta-argument
+
+Now we understand how fileset works, we can use it with 'for_each'.
+
+#### for_each example using fileset
+```tf
+for_each = fileset("${path.root}/public/assets/", "*.{jpg,png,gif}")
+```
+
+In the resource block where a for_each is used, an additional 'each' object is available in expressions. Allowing each instance configuration to be modified. The object has two attributes:
+
+- each.key -- The map key or set member
+- each.value -- The map value (same as each.key if using a set)
+
+As described, using each.key or each.value is acceptable when dealing with sets. We will use each.key.
+
+As we have seen previously, the AWS provider resource [aws_s3_object](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_object) can be used to upload files to an S3 bucket. We will use this again to upload the image files from the public/assets folder using the for_each meta-argument.
+
+Multiple resource "aws_s3_object" blocks will be created for each
+instance in the for_each so we do not need to write the blocks.
+
+Key points to note using 'aws_s3_object':
+
+ - key -- (Required) Name and path of the object once it is in the bucket.
+ - source -- The path to a file that will be read and uploaded as raw bytes for the object content.
+
+- content_type -- jpeg and png files have different mime-types, so we cannot define multiple mime-types here. BingChat[<sup>[16]</sup>](#external-references) did provide a solution, by that has not been tested or implemented here.
+
+ We will use a Terraform variable 'assets_path'. The value of this variable will be the full path of the 'assets' folder in our local environment.
+
+#### terraform.tfvars
+ ```bash
+ assets_path = "/workspace/terraform-beginner-bootcamp-2023/public/assets"
+ ```
+
+ **Note:** No trailing '/' in variable after '/assets'. We will need to insert the '/' in our expression for 'source' and 'etag'. when using variable interpolation. I think this looks more readable.
+
+ As with all variables we must define 'assets_path' in the following locations.
+
+ - Root module variables.tf
+ - Root module main.tf module block
+ - Nested module variables.tf
+
+ Currently, their is no way with Terraform to validate a path, so we will not have a validation block for this variable.
+
+#### resource_s3.tf, block for 'upload_assets'
+```tf
+..
+
+resource "aws_s3_object" "upload_assets" {
+  for_each = fileset(var.assets_path, "*.{jpg,png,gif}")
+  bucket = aws_s3_bucket.website_bucket.bucket
+  key = "assets/${each.key}" 
+  source = "${var.assets_path}/${each.key}" 
+
+  etag = filemd5("${var.assets_path}/${each.key}")
+
+  lifecycle {
+    replace_triggered_by = [ terraform_data.content_version ]
+    ignore_changes = [ etag ]
+  }
+}
+
+..
+```
+
+With the updates to the project files completed, test using the following commands:
+
+```bash
+tf init
+```
+```bash
+tf plan
+```
+```bash
+tf apply --auto-approve
+```
+
+#### Expected cosole output for terraform plan
+
+Some text from the plan output, showing the aws_s3_object being created for the two image files.
+```bash
+..
+ # module.terrahouse_aws.aws_s3_object.upload_assets["image1.png"] will be created
+   + resource "aws_s3_object" "upload_assets" {
+..
+# module.terrahouse_aws.aws_s3_object.upload_assets["image2.jpg"] will be created
+  + resource "aws_s3_object" "upload_assets" {
+..
+```
+
+Copy the cloudfront_url value from the 'terraform output', and paste into a new browser tab. The updated webpage should be viewable with the two images.
+
 ## External References
 - [Standard Module Structure](https://developer.hashicorp.com/terraform/language/modules/develop/structure) <sup>[1]</sup>
 - [Input Variables](https://developer.hashicorp.com/terraform/language/values/variables) <sup>[2]</sup>
@@ -1225,3 +1395,4 @@ Plan: 2 to add, 1 to change, 2 to destroy.
 - [Working with distributions](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-working-with.html) <sup>[13]</sup>
 - [Restricting access to an Amazon S3 origin](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html) <sup>[14]</sup>
 - [Data Sources](https://developer.hashicorp.com/terraform/language/data-sources) <sup>[15]</sup>
+- [Bing Chat response for multiple content types](https://sl.bing.net/he63NrFksXA) <sup>[16]</sup>

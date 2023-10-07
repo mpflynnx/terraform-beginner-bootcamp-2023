@@ -3,3 +3,4 @@ bucket_name = "terraform-20230928133942847400000001"
 index_html_path = "/workspace/terraform-beginner-bootcamp-2023/public/index.html"
 error_html_path = "/workspace/terraform-beginner-bootcamp-2023/public/error.html"
 content_version = 1
+assets_path = "/workspace/terraform-beginner-bootcamp-2023/public/assets"
