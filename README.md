@@ -1,11 +1,11 @@
 # <p align=center> Terraform Beginner Bootcamp 2023
 
-## The Terraform Beginner Bootcamp[<sup>[1]</sup>](#external-references) is a 2-week bootcamp that teaches the fundamentals of Terraform utilizing AWS services centred around a cloud project. This bootcamp strongly focuses on hands-on experience.
+## The [Terraform Beginner Bootcamp](https://terraform.cloudprojectbootcamp.com/) is a 2-week bootcamp that teaches the fundamentals of Terraform utilizing AWS services centred around a cloud project. This bootcamp strongly focuses on hands-on experience.
 
 
 # <p align=center> Cloud Project: TerraTowns
 
-## TerraTowns is a community website where bootcamp participants (terraformers) launch their own Terra House (a user-created website) and connect their house to other Terraformers. Similar to GeoCities circa 2001.
+## [TerraTowns](https://terratowns.cloud/) is a community website where bootcamp participants (terraformers) launch their own Terra House (a user-created website) and connect their house to other Terraformers. Similar to GeoCities circa 2001.
 
 <p align="center">
   <img src="assets/week2.PNG"/>
@@ -19,6 +19,6 @@
 - [Week 2 Journal](journal/week2.md)
 
 ## Extras
-- [Terraform Beginner Bootcamp FAQs](https://docs.google.com/document/d/1dybATJBTh7WFGG_UhAOw9w48hiRKOWzNXbLFrW_Urgo/edit)<sup>[1]</sup>
+- [Terraform Beginner Bootcamp FAQs](https://docs.google.com/document/d/1dybATJBTh7WFGG_UhAOw9w48hiRKOWzNXbLFrW_Urgo/edit)
 - [Centre Images in README.md](https://stackoverflow.com/questions/12090472/how-do-i-center-an-image-in-the-readme-md-file-on-github)
 - [markdown-native-text-alignment](https://stackoverflow.com/questions/14051715/markdown-native-text-alignment)

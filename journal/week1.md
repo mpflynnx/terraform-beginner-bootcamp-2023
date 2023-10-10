@@ -1221,7 +1221,7 @@ Usually a Static Website will have many more files than index.html and error.htm
 
 We will update our index.html to display two images, image1.png and image2.jpg. These image files will be stored in the projects /public/assets/ folder.
 
-We can use the [for_each](https://developer.hashicorp.com/terraform/language/meta-arguments/for_each) meta-argument to upload all files stored in a public/assets/ folder. Technically Terraform should not be use to upload files, but doing so for this project allows us to understand the use of the 'for_each' meta-argument.
+We can use the [for_each](https://developer.hashicorp.com/terraform/language/meta-arguments/for_each) meta-argument to upload all files stored in a public/assets/ folder. Technically Terraform should not be used to upload files, but doing so for this project allows us to understand the use of the 'for_each' meta-argument.
 
 for_each is a meta-argument defined by the Terraform language. It can be used with modules and with every resource type.
 
