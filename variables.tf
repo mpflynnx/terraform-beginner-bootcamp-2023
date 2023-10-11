@@ -1,4 +1,14 @@
-variable "user_uuid" {
+variable "terratowns_endpoint" {
+ description = "endpoint for TerraTowns api"
+ type = string
+}
+
+variable "terratowns_access_token" {
+ description = "access token for TerraTowns api"
+ type = string
+}
+
+variable "teacherseat_user_uuid" {
   description = "The UUID for the user" 
   type = string
 }
