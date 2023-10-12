@@ -13,10 +13,10 @@ variable "teacherseat_user_uuid" {
   type = string
 }
 
-variable "bucket_name" {
-  description = "The name of the S3 bucket"
-  type = string
-}
+# variable "bucket_name" {
+#   description = "The name of the S3 bucket"
+#   type = string
+# }
 
 variable "index_html_path" {
   description = "The file path for index.html"
